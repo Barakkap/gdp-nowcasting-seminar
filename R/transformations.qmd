@@ -28,6 +28,7 @@ library(forecast)
 library(seasonal)
 library(lubridate)
 library(openxlsx)
+library(readr)
 ```
 
 ## Scripts
@@ -76,7 +77,7 @@ in this notebook we will take our daily, monthly and quarterly tables, examine t
 ## Import data sets:
 
 ```{r}
-path <- "C:/Users/eladb/OneDrive/Desktop/University/2025 B/Nowcasting/Seminar/data/raw/nowcasting_data_raw.xlsx"
+path <- "C:/Users/eladb/OneDrive/Desktop/University/Bachelor's/2025 B/Nowcasting/Seminar/data/raw/nowcasting_data_raw.xlsx"
 ```
 
 ```{r}
@@ -245,14 +246,14 @@ in this part we are using MoFi script to treat Israeli seasonality in the data
 load files
 
 ```{r}
-td <- read_csv("C:/Users/eladb/OneDrive/Desktop/University/2025 B/Nowcasting/Seasonality by Yotam/SA_CODE/Data/td_var.csv")
+td <- read_csv("C:/Users/eladb/OneDrive/Desktop/University/Bachelor's/2025 B/Nowcasting/Seasonality by Yotam/SA_CODE/Data/td_var.csv")
 td_ts <- ts(
   td[, -1],
   start = c(year(min(td$date)), month(min(td$date))),
   frequency = 12
 )
 
-preadj <- read_excel("C:/Users/eladb/OneDrive/Desktop/University/2025 B/Nowcasting/Seasonality by Yotam/SA_CODE/Data/hol_preadj.xlsx") %>%
+preadj <- read_excel("C:/Users/eladb/OneDrive/Desktop/University/Bachelor's/2025 B/Nowcasting/Seasonality by Yotam/SA_CODE/Data/hol_preadj.xlsx") %>%
   mutate(date = as.Date(date))
 
 hag_ts <- ts(
@@ -525,51 +526,18 @@ test_transform <- function(x, freq = 12, alpha = 0.05) {
 
 #### Apply
 
-apply on each block and save the results in a list like variable, later we will apply transformations with the recommended ones we got there.
+apply on each block and save the recommendations in a named list. Later we will apply transformations with the recommended codes.
 
 ```{r}
-block <- blocks_sa$personal_labor_income_taxes
-trans_01 <- sapply(block %>% dplyr::select(-Date), test_transform)
-```
+# These are the model input blocks. Keep adjusters and target unchanged.
+blocks_to_transform <- setdiff(names(blocks_sa), c("adjusters", "target"))
 
-```{r}
-block <- blocks_sa$corporate_business_tax
-trans_02 <- sapply(block %>% dplyr::select(-Date), test_transform)
-```
+transformation_recommendations <- blocks_sa[blocks_to_transform] |>
+  purrr::map(function(block) {
+    sapply(block %>% dplyr::select(-Date), test_transform)
+  })
 
-```{r}
-block <- blocks_sa$consumption_tax
-trans_03 <- sapply(block %>% dplyr::select(-Date), test_transform)
-```
-
-```{r}
-block <- blocks_sa$import_trade_tax
-trans_04 <- sapply(block %>% dplyr::select(-Date), test_transform)
-```
-
-```{r}
-block <- blocks_sa$real_estate
-trans_05 <- sapply(block %>% dplyr::select(-Date), test_transform)
-```
-
-```{r}
-block <- blocks_sa$real_activity
-trans_06 <- sapply(block %>% dplyr::select(-Date), test_transform)
-```
-
-```{r}
-block <- blocks_sa$labor
-trans_07 <- sapply(block %>% dplyr::select(-Date), test_transform)
-```
-
-```{r}
-block <- blocks_sa$capital_markets
-trans_08 <- sapply(block %>% dplyr::select(-Date), test_transform)
-```
-
-```{r}
-block <- blocks_sa$FX_liqudity
-trans_09 <- sapply(block %>% dplyr::select(-Date), test_transform)
+transformation_recommendations
 ```
 
 ### Transform
@@ -706,12 +674,6 @@ transform_block <- function(block_df, codes_vector, freq = 12) {
 
 #### Apply
 
-print the suggested transformation we stored earlier
-
-```{r}
-trans_09
-```
-
 Transformations codes:
 
 0.  None
@@ -724,30 +686,136 @@ Transformations codes:
 7.  logdiff + seasonal diff
 8.  detrend (remove linear trend)
 
-in the chunks bellow results from transformation are saved into "out" then written to "blocks_transformed" and meta data is save to "transformation_info"
+The chunk below converts the test recommendations into numeric transformation codes, applies them to every model input block, and stores the transformed data in `blocks_transformed`.
 
 ```{r}
-block <- blocks_sa$FX_liqudity # choose your block
-codes <- c(3,3,3) # transformations vector
+recommendation_to_codes <- function(recommendations) {
+  codes <- dplyr::case_when(
+    recommendations == "none" ~ 0L,
+    recommendations == "log" ~ 1L,
+    recommendations == "diff" ~ 2L,
+    recommendations == "logdiff" ~ 3L,
+    recommendations == "seasonal_diff" ~ 4L,
+    recommendations == "log+seasonal_diff" ~ 5L,
+    recommendations == "diff+seasonal_diff" ~ 6L,
+    recommendations == "logdiff+seasonal_diff" ~ 7L,
+    recommendations == "detrend" ~ 8L,
+    recommendations == "detrend+seasonal_diff" ~ 8L,
+    recommendations == "too_short" ~ 0L,
+    TRUE ~ NA_integer_
+  )
+  
+  names(codes) <- names(recommendations)
+  
+  unsupported <- unique(recommendations[is.na(codes)])
+  if (length(unsupported)) {
+    stop("Unsupported transformation recommendation(s): ",
+         paste(unsupported, collapse = ", "))
+  }
+  
+  if (any(recommendations == "detrend+seasonal_diff", na.rm = TRUE)) {
+    warning("'detrend+seasonal_diff' is mapped to 'detrend'. Review manually if needed.")
+  }
+  
+  codes
+}
 ```
 
 ```{r}
-out <- transform_block(block, codes)
+# Optional manual overrides. Use named vectors by block and variable.
+# Example:
+# manual_transformation_overrides <- list(
+#   FX_liqudity = c("Foreign exchange reserves (millions of dollars)" = 3)
+# )
+manual_transformation_overrides <- list()
 
-blocks_transformed$FX_liqudity <- out$data # adjust to your block
-transformation_info$FX_liqudity <- out$info # adjust to your block
-
+apply_code_overrides <- function(block_name, codes) {
+  overrides <- manual_transformation_overrides[[block_name]]
+  if (is.null(overrides)) return(codes)
+  
+  unknown_vars <- setdiff(names(overrides), names(codes))
+  if (length(unknown_vars)) {
+    stop("Manual override variable(s) not found in block '", block_name, "': ",
+         paste(unknown_vars, collapse = ", "))
+  }
+  
+  codes[names(overrides)] <- unname(overrides)
+  codes
+}
 ```
 
-test for the results of the transformations, I save it to a corresponding "trans_nn_test" and plotting as needed.
-
 ```{r}
-block <- blocks_transformed$FX_liqudity # choose the same block
-trans_09_test <- sapply(block %>% dplyr::select(-Date), test_transform) # choose number
+blocks_transformed <- blocks_sa
+transformation_info <- list()
+applied_transformation_codes <- list()
+
+for (block_name in names(transformation_recommendations)) {
+  recommendations <- transformation_recommendations[[block_name]]
+  codes <- recommendation_to_codes(recommendations)
+  codes <- apply_code_overrides(block_name, codes)
+  
+  out <- transform_block(blocks_sa[[block_name]], codes)
+  
+  out$info$recommended <- unname(recommendations[out$info$variable])
+  out$info <- out$info[, c("variable", "recommended", "code", "transformation")]
+  
+  blocks_transformed[[block_name]] <- out$data
+  transformation_info[[block_name]] <- out$info
+  applied_transformation_codes[[block_name]] <- codes
+}
+
+# Keep the target from the raw input and transform quarterly GDP to QoQ log-diff.
+if (!"target" %in% names(blocks_raw)) {
+  stop("Raw input must include a 'target' sheet.")
+}
+
+target_df <- as.data.frame(blocks_raw$target)
+
+if (!"Date" %in% names(target_df)) {
+  stop("The 'target' sheet must contain a Date column.")
+}
+
+if (!"GDP" %in% names(target_df)) {
+  stop("The 'target' sheet must contain a GDP column.")
+}
+
+target_df$Date <- as.Date(target_df$Date)
+target_df <- target_df %>% dplyr::arrange(Date)
+
+if (any(target_df$GDP <= 0, na.rm = TRUE)) {
+  stop("GDP must be positive to calculate log-diff.")
+}
+
+target_df$GDP <- c(NA_real_, diff(log(target_df$GDP)))
+target_df <- target_df[, c("Date", setdiff(names(target_df), "Date"))]
+
+blocks_transformed$target <- target_df
+transformation_info$target <- data.frame(
+  variable = "GDP",
+  recommended = "target",
+  code = 3L,
+  transformation = "logdiff_qoq",
+  stringsAsFactors = FALSE
+)
+
+transformation_summary <- dplyr::bind_rows(
+  lapply(names(transformation_info), function(block_name) {
+    dplyr::mutate(transformation_info[[block_name]], block = block_name, .before = variable)
+  })
+)
+
+transformation_summary
 ```
 
+test for the results of the transformations
+
 ```{r}
-plot.ts(blocks_transformed$FX_liqudity$`Foreign exchange reserves (millions of dollars)`)
+post_transformation_tests <- blocks_transformed[blocks_to_transform] |>
+  purrr::map(function(block) {
+    sapply(block %>% dplyr::select(-Date), test_transform)
+  })
+
+post_transformation_tests
 ```
 
 ### Save results
@@ -962,7 +1030,9 @@ shift_report$FX_liqudity <- out$report
 ### Save Results
 
 ```{r}
-save_list_to_excel(blocks_shifted, "blocks_shifted.xlsx")
+blocks_shifted_path <- "C:/Users/eladb/OneDrive/Desktop/University/Bachelor's/2025 B/Nowcasting/Seminar/data/lag_adjusted/blocks_shifted.xlsx"
+
+save_list_to_excel(blocks_shifted, blocks_shifted_path)
 ```
 
 ```{r}
@@ -975,7 +1045,11 @@ this script takes your transformed data and turn it into unified sheet that fits
 
 ```{r}
 # Input: multi-sheet transformed + lag-adjusted workbook
-input_path <- "C:/Users/eladb/OneDrive/Desktop/University/Bachelor's/2025 B/Nowcasting/Seminar/data/lag_adjusted/blocks_shifted.xlsx"
+if (!exists("blocks_shifted_path")) {
+  blocks_shifted_path <- "C:/Users/eladb/OneDrive/Desktop/University/Bachelor's/2025 B/Nowcasting/Seminar/data/lag_adjusted/blocks_shifted.xlsx"
+}
+
+input_path <- blocks_shifted_path
 
 # Output: one-sheet panel for DFM
 output_path <- "C:/Users/eladb/OneDrive/Desktop/University/Bachelor's/2025 B/Nowcasting/Seminar/data/unified/combined_monthly_panel_Q_refined.xlsx"
@@ -983,6 +1057,10 @@ output_path <- "C:/Users/eladb/OneDrive/Desktop/University/Bachelor's/2025 B/Now
 # Read sheet names, excluding adjusters
 sheets <- readxl::excel_sheets(input_path)
 sheets_to_join <- sheets[sheets != "adjusters"]
+
+if (!"target" %in% sheets_to_join) {
+  stop("The transformed workbook must include a 'target' sheet.")
+}
 
 # Read each sheet, preserving workbook sheet order and column order
 blocks <- sheets_to_join |>
@@ -1006,6 +1084,10 @@ blocks <- sheets_to_join |>
 
     df
   })
+
+if (!"GDP" %in% names(blocks$target)) {
+  stop("The 'target' sheet must contain a GDP column after transformation.")
+}
 
 # Optional safety check: no duplicated non-Date columns across sheets
 all_variable_names <- unlist(lapply(blocks, function(df) setdiff(names(df), "Date")))
@@ -1044,6 +1126,33 @@ combined_monthly_panel_Q_refined <- combined_monthly_panel_Q_refined[
   first_valid_row:nrow(combined_monthly_panel_Q_refined),
 ]
 
+if (!"GDP" %in% names(combined_monthly_panel_Q_refined)) {
+  stop("GDP was not carried into the unified modeling table.")
+}
+
+gdp_validation <- combined_monthly_panel_Q_refined %>%
+  dplyr::select(Date, GDP) %>%
+  dplyr::inner_join(
+    blocks$target %>%
+      dplyr::select(Date, GDP_from_target = GDP),
+    by = "Date"
+  )
+
+if (nrow(gdp_validation) == 0 || all(is.na(gdp_validation$GDP))) {
+  stop("No non-missing transformed GDP values were carried into the unified table.")
+}
+
+gdp_mismatch <- gdp_validation %>%
+  dplyr::filter(
+    xor(is.na(GDP), is.na(GDP_from_target)) |
+      (!is.na(GDP) &
+         !is.na(GDP_from_target) &
+         abs(GDP - GDP_from_target) > sqrt(.Machine$double.eps))
+  )
+
+if (nrow(gdp_mismatch) > 0) {
+  stop("GDP in the unified table does not match the transformed target sheet.")
+}
 
 # Save as one-sheet Excel file
 openxlsx::write.xlsx(
