@@ -27,6 +27,7 @@ library(tseries)
 library(forecast)
 library(seasonal)
 library(lubridate)
+library(openxlsx)
 ```
 
 ## Scripts
@@ -966,4 +967,92 @@ save_list_to_excel(blocks_shifted, "blocks_shifted.xlsx")
 
 ```{r}
 save_transformation_info(shift_report, "shift_report.xlsx")
+```
+
+# Create Unified Table for Modeling
+
+this script takes your transformed data and turn it into unified sheet that fits the format of DFM.qmd
+
+```{r}
+# Input: multi-sheet transformed + lag-adjusted workbook
+input_path <- "C:/Users/eladb/OneDrive/Desktop/University/Bachelor's/2025 B/Nowcasting/Seminar/data/lag_adjusted/blocks_shifted.xlsx"
+
+# Output: one-sheet panel for DFM
+output_path <- "C:/Users/eladb/OneDrive/Desktop/University/Bachelor's/2025 B/Nowcasting/Seminar/data/unified/combined_monthly_panel_Q_refined.xlsx"
+
+# Read sheet names, excluding adjusters
+sheets <- readxl::excel_sheets(input_path)
+sheets_to_join <- sheets[sheets != "adjusters"]
+
+# Read each sheet, preserving workbook sheet order and column order
+blocks <- sheets_to_join |>
+  setNames(sheets_to_join) |>
+  purrr::map(function(sheet_name) {
+    df <- readxl::read_excel(input_path, sheet = sheet_name)
+
+    if (!"Date" %in% names(df)) {
+      stop("Sheet '", sheet_name, "' does not contain a Date column.")
+    }
+
+    df$Date <- as.Date(df$Date)
+    
+# Target dates are end-of-month; move them to first day of next month
+    if (sheet_name == "target") {
+      df$Date <- df$Date + 1
+    }
+
+    # Keep Date first, then original column order
+    df <- df[, c("Date", setdiff(names(df), "Date"))]
+
+    df
+  })
+
+# Optional safety check: no duplicated non-Date columns across sheets
+all_variable_names <- unlist(lapply(blocks, function(df) setdiff(names(df), "Date")))
+duplicated_vars <- unique(all_variable_names[duplicated(all_variable_names)])
+
+if (length(duplicated_vars) > 0) {
+  stop(
+    "Duplicate variable names found across sheets: ",
+    paste(duplicated_vars, collapse = ", "),
+    ". Rename them before joining, or add prefixes intentionally."
+  )
+}
+
+# Join all sheets by Date
+combined_monthly_panel_Q_refined <- purrr::reduce(
+  blocks,
+  dplyr::full_join,
+  by = "Date"
+) |>
+  dplyr::arrange(Date)
+
+# Drop leading rows until at least 2 variables have observed data
+non_date_cols <- setdiff(names(combined_monthly_panel_Q_refined), "Date")
+
+row_non_missing_count <- rowSums(
+  !is.na(combined_monthly_panel_Q_refined[, non_date_cols, drop = FALSE])
+)
+
+first_valid_row <- which(row_non_missing_count >= 2)[1]
+
+if (is.na(first_valid_row)) {
+  stop("No row found with at least 2 non-missing variables.")
+}
+
+combined_monthly_panel_Q_refined <- combined_monthly_panel_Q_refined[
+  first_valid_row:nrow(combined_monthly_panel_Q_refined),
+]
+
+
+# Save as one-sheet Excel file
+openxlsx::write.xlsx(
+  combined_monthly_panel_Q_refined,
+  file = output_path,
+  sheetName = "combined_monthly_panel",
+  overwrite = TRUE
+)
+
+message("Saved: ", output_path)
+
 ```
