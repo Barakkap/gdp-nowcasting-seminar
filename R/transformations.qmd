@@ -7,6 +7,8 @@ author: Elad Benjo
 
 # Intro
 
+Test to showcase Github
+
 this notebooks describes the suggested transformations pipeline:
 
 RAW -\> Price Adjustments (FX and CPI) -\> Seasonality -\> Final Transformations
@@ -231,7 +233,6 @@ head(blocks_real$FX_liqudity$`Foreign exchange reserves (millions of shekels)`)
 ```{r}
 head(blocks_raw$FX_liqudity$`Foreign exchange reserves (millions of shekels)`)
 ```
-
 
 ### Save Results
 
