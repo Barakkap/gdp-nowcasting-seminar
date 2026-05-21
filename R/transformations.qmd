@@ -256,14 +256,15 @@ in this part we are using MoFi script to treat Israeli seasonality in the data
 load files
 
 ```{r}
-td <- read_csv("C:/Users/eladb/OneDrive/Desktop/University/Bachelor's/2025 B/Nowcasting/Seasonality by Yotam/SA_CODE/Data/td_var.csv")
+setwd("..")
+td <- read_csv("data/raw/td_var.csv")
 td_ts <- ts(
   td[, -1],
   start = c(year(min(td$date)), month(min(td$date))),
   frequency = 12
 )
 
-preadj <- read_excel("C:/Users/eladb/OneDrive/Desktop/University/Bachelor's/2025 B/Nowcasting/Seasonality by Yotam/SA_CODE/Data/hol_preadj.xlsx") %>%
+preadj <- read_excel("data/raw/hol_preadj.xlsx") %>%
   mutate(date = as.Date(date))
 
 hag_ts <- ts(
