@@ -4,3 +4,4 @@ rsconnect/
 /.rproj.user
 *.xlsx
 *.csv
+.Rproj.user

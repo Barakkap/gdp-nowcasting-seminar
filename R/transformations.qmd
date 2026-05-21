@@ -231,7 +231,7 @@ head(blocks_real$FX_liqudity$`Foreign exchange reserves (millions of shekels)`)
 ```
 
 ```{r}
-head(blocks_raw$FX_liqudity$`Foreign exchange reserves (millions of shekels)`)
+head(blocks_real$FX_liqudity$`Foreign exchange reserves (millions of shekels)`)
 ```
 
 ### Save Results
