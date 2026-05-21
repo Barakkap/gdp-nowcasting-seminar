@@ -5,3 +5,5 @@ rsconnect/
 *.xlsx
 *.csv
 .Rproj.user
+.Rhistory
+.RData
