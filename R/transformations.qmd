@@ -517,7 +517,7 @@ test_transform <- function(x, freq = 12, alpha = 0.05) {
     base <- "diff"
   } else if (adf_stationary && !kpss_stationary) {
     base <- "detrend"
-  } else {
+  } else if (!adf_stationary && kpss_stationary) {
     base <- "diff"
   }
   
