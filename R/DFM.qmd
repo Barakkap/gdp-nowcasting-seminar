@@ -27,8 +27,8 @@ library(vars)
 Your data frame should be from the higher frequency (monthly \> quarterly), then have the quarterly variable(s) to the right most column, make sure when calling "DFM" to specify your quarterly variables.
 
 ```{r}
-
-df <- read_excel("C:/Users/eladb/OneDrive/Desktop/University/2025 B/Nowcasting/Seminar/data/combined_monthly_panel_Q_refined.xlsx")
+setwd("..")
+df <- read_excel("data/clean/combined_monthly_panel_Q_refined.xlsx")
 
 df$Date <- as.Date(df$Date)
 
@@ -110,7 +110,8 @@ unscale_var <- function(dfm_obj, var_name, std_value) {
 
 ```{r}
 # --- Load Data ---
-df <- read_excel("C:/Users/eladb/OneDrive/Desktop/University/2025 B/Nowcasting/Seminar/data/combined_monthly_panel_Q_refined.xlsx")
+setwd("..")
+df <- read_excel("data/clean/combined_monthly_panel_Q_refined.xlsx")
 df$Date <- as.Date(df$Date)
 ```
 
@@ -190,7 +191,8 @@ for (i in seq_along(all_months)) {
 basic function to save results to xlsx file
 
 ```{r}
-write_forecast_info <- function(results_report, file_path = "forecast.xlsx") {
+setwd("..")
+write_forecast_info <- function(results_report, file_path = "output/forecast.xlsx") {
   wb <- createWorkbook()
   
   for (bn in names(results_report)) {
@@ -205,12 +207,13 @@ write_forecast_info <- function(results_report, file_path = "forecast.xlsx") {
 use of saving results to xlsx
 
 ```{r}
+setwd("..")
 write_forecast_info(results_report) # full results
 ```
 
 ```{r}
 # this chunk organizes only quarterly forecasts and this is where your acutal relevant results go to
-
+setwd("..")
 # create an empty list for the results
 quarterly_fcst <- list() 
 
@@ -229,7 +232,8 @@ quarterly_fcst$Date <- as.Date(quarterly_fcst$Date)
 save the quarterly forecast results
 
 ```{r}
-write_forecast_info(quarterly_fcst, "quarterly_fcst.xlsx")
+setwd("..")
+write_forecast_info(quarterly_fcst, "output/quarterly_fcst.xlsx")
 ```
 
 Calculate RMSE and MAE for each forecast horizon
@@ -425,7 +429,8 @@ This approach allow us to do few things:\
 
 ```{r}
 # --- Load Data ---
-df <- read_excel("C:/Users/eladb/OneDrive/Desktop/University/2025 B/Nowcasting/Seminar/data/combined_monthly_panel_Q_refined.xlsx")
+setwd("..")
+df <- read_excel("data/clean/combined_monthly_panel_Q_refined.xlsx")
 df$Date <- as.Date(df$Date)
 ```
 
