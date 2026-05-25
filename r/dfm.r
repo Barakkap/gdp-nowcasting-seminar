@@ -142,7 +142,7 @@ for (i in seq_along(all_months)) {
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 write_forecast_info <- function(results_report, file_path = "output/forecast.xlsx") {
-  wb <- openxslx::createWorkbook()
+  wb <- openxlsx::createWorkbook()
   
   for (bn in names(results_report)) {
     addWorksheet(wb, bn)
