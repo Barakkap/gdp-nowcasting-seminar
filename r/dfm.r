@@ -7,10 +7,9 @@ library(purrr)
 library(xts)
 library(lubridate)
 library(vars)
-
+library(openxlsx)
 
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-setwd("..")
 df <- read_excel("data/clean/combined_monthly_panel_Q_refined.xlsx")
 
 df$Date <- as.Date(df$Date)
@@ -68,7 +67,7 @@ unscale_var <- function(dfm_obj, var_name, std_value) {
 
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # --- Load Data ---
-setwd("..")
+
 df <- read_excel("data/clean/combined_monthly_panel_Q_refined.xlsx")
 df$Date <- as.Date(df$Date)
 
@@ -141,7 +140,7 @@ for (i in seq_along(all_months)) {
 
 
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-setwd("..")
+
 write_forecast_info <- function(results_report, file_path = "output/forecast.xlsx") {
   wb <- openxslx::createWorkbook()
   
@@ -155,13 +154,13 @@ write_forecast_info <- function(results_report, file_path = "output/forecast.xls
 
 
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-setwd("..")
+
 write_forecast_info(results_report) # full results
 
 
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # this chunk organizes only quarterly forecasts and this is where your acutal relevant results go to
-setwd("..")
+
 # create an empty list for the results
 quarterly_fcst <- list() 
 
@@ -178,7 +177,7 @@ quarterly_fcst$Date <- as.Date(quarterly_fcst$Date)
 
 
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-setwd("..")
+
 write_forecast_info(quarterly_fcst, "output/quarterly_fcst.xlsx")
 
 
@@ -353,7 +352,7 @@ summary(dfm_curr)
 
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # --- Load Data ---
-setwd("..")
+
 df <- read_excel("data/clean/combined_monthly_panel_Q_refined.xlsx")
 df$Date <- as.Date(df$Date)
 
