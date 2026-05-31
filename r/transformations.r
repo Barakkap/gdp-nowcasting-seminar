@@ -174,7 +174,7 @@ blocks_real$real_activity <-
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Its no longer Dollars, its shekels Now
 blocks_real$FX_liqudity$`Foreign exchange reserves (millions of shekels)` <- blocks_raw$FX_liqudity$`Foreign exchange reserves (millions of dollars)` * blocks_raw$FX_liqudity$Dollar
-
+blocks_transformed$FX_liqudity <- blocks_transformed$FX_liqudity %>% dplyr::select(-c("Foreign exchange reserves (millions of dollars)"))
 
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 blocks_real$FX_liqudity <-
