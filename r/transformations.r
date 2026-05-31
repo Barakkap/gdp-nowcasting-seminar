@@ -784,7 +784,7 @@ save_transformation_info(transformation_info, "output/TRANSFORMATION_INFO.xlsx")
 
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-save_list_to_excel(blocks_transformed, "blocks_transformed.xlsx")
+save_list_to_excel(blocks_transformed, "output/blocks_transformed.xlsx")
 
 
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
