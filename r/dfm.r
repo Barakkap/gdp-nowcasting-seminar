@@ -14,10 +14,14 @@ library(openxlsx)
 set.seed(2026)
 
 
-df <- read_excel("data/clean/combined_monthly_panel_Q_refined.xlsx")
+df <- read_excel("data/clean/combined_monthly_panel_Q_refined_elad.xlsx")
+df_evyatar <- read_excel("data/clean/combined_monthly_panel_Q_refined.xlsx")
+
+
+df_nuran <- read_excel("data/clean/combined_monthly_panel_Q_refined_nuran.xlsx")
 
 df <- df %>%
-  select(where(~ !all(is.na(.))))
+  dplyr::select(where(~ !all(is.na(.))))
 
 
 
@@ -109,9 +113,9 @@ for (i in seq_along(all_months)) {
   month_i <- month(cutoff)
 
   # set dynamic horizon
-  if (month_i %in% c(1,4,7,10)) {
+  if (month_i %in% c(3,6,9,12)) {
     h_val <- 3
-  } else if (month_i %in% c(2,5,8,11)) {
+  } else if (month_i %in% c(4,7,10,1)) {
     h_val <- 2
   } else {
     h_val <- 1
@@ -177,10 +181,15 @@ quarterly_fcst <- list()
 results_report$month <- as.integer(format(results_report$Date, "%m"))
 
 # keep only the quarter end results and add the real value of GDP (log-diff)
-quarterly_fcst <- results_report[results_report$month %in% c(1,4,7,10), ]
+quarterly_fcst <- results_report[results_report$month %in% c(3,6,9,12), ]
+
+df <- df %>% 
+  mutate(GDP = lead(GDP, n = 1))
+
 quarterly_fcst <- left_join(quarterly_fcst, df[, c("Date", "GDP")],
                             by = join_by(Date))
-
+quarterly_fcst$Date
+df$Date
 # format dates
 quarterly_fcst$Date <- as.Date(quarterly_fcst$Date)
 
