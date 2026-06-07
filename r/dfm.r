@@ -16,6 +16,9 @@ set.seed(2026)
 
 df <- read_excel("data/clean/combined_monthly_panel_Q_refined.xlsx")
 
+df <- df %>%
+  select(where(~ !all(is.na(.))))
+
 
 
 df$Date <- as.Date(df$Date)
