@@ -28,12 +28,12 @@ df_evya_reduce <- df_evya %>%
 # library(zoo) 
 
 # 1. Clean the original dataset to remove duplicate months
-df_clean <- df %>% distinct(Date, .keep_all = TRUE)
+df_clean <- df_evya_reduce %>% distinct(Date, .keep_all = TRUE)
 
 # 2. Extract factors and align to the dataset's dates
 all_factors <- data.frame(dfm_curr$F_qml)
 colnames(all_factors) <- c("f1", "f2", "f3", "f4")
-all_factors$Date <- df_sub$Date
+all_factors$Date <- df_clean$Date
 
 # 3. Prepare Predictors (X) - Keep only target factor months (1, 4, 7, 10)
 x_train_prep <- all_factors %>%

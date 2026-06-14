@@ -14,8 +14,14 @@ library(openxlsx)
 set.seed(2026)
 
 
-df <- read_excel("data/clean/combined_monthly_panel_Q_refined_elad.xlsx")
+df <- read_excel("data/clean/combined_monthly_panel_Q_refined.xlsx")
 df_evyatar <- read_excel("data/clean/combined_monthly_panel_Q_refined.xlsx")
+
+
+# gdp_df <- subset(df, !is.na(df$gdp))
+# GDP_months <- unqiue(month(as.date(gdp_df$Date)))
+# 
+# stop if not length()
 
 
 df_nuran <- read_excel("data/clean/combined_monthly_panel_Q_refined_nuran.xlsx")
@@ -371,14 +377,16 @@ summary(dfm_curr)
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # --- Load Data ---
 
-df <- read_excel("data/clean/combined_monthly_panel_Q_refined.xlsx")
+df <- read_excel("data/clean/combined_monthly_panel_Q_refined_nuran.xlsx")
+df <- df %>%
+  dplyr::select(where(~ !all(is.na(.))))
 df$Date <- as.Date(df$Date)
 
 
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # --- Define rolling dates ---
-start_date <- as.Date("2020-12-01")
-end_date   <- as.Date("2025-01-01")
+start_date <- as.Date("1995-02-01")
+end_date   <- as.Date("2026-05-01")
 
 library(lubridate)
 
@@ -402,7 +410,7 @@ all_months <- seq(start_date, end_date, by = "month")
 
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # for each factor save the value for the EoQ date
-results_report <- data.frame(
+results_report_empty <- data.frame(
   Date = all_months,
   h0_f1 = NA, h0_f2 = NA, h0_f3 = NA, h0_f4 = NA,
   h1_f1 = NA, h1_f2 = NA, h1_f3 = NA, h1_f4 = NA,
@@ -414,6 +422,19 @@ results_report <- data.frame(
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 all_months <- head(all_months, -1)
 
+# Assuming all_months is already defined
+results_report <- data.frame(
+  Date = all_months,
+  # Factor 1 placeholders
+  h0_f1 = NA, h1_f1 = NA, h2_f1 = NA, h3_f1 = NA,
+  # Factor 2 placeholders
+  h0_f2 = NA, h1_f2 = NA, h2_f2 = NA, h3_f2 = NA,
+  # Factor 3 placeholders
+  h0_f3 = NA, h1_f3 = NA, h2_f3 = NA, h3_f3 = NA,
+  # Factor 4 placeholders
+  h0_f4 = NA, h1_f4 = NA, h2_f4 = NA, h3_f4 = NA
+)
+
 for (i in seq_along(all_months)) {
 
   cutoff <- all_months[i]
@@ -424,6 +445,8 @@ for (i in seq_along(all_months)) {
     h_val <- 3
   } else if (month_i %in% c(2,5,8,11)) {
     h_val <- 2
+  } else if (i == 48) {
+    h_val = -3
   } else {
     h_val <- 1
   }
