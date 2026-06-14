@@ -21,6 +21,21 @@ df <- df %>% select(-c('Net import purchase tax', 'Total Income Tax Division Net
 
 df$Date <- as.Date(df$Date)
 
+# 1. Create month-year column
+data$month_year <- format(data$Date, "%Y-%m")
+
+# 2. Aggregate: one row per month-year, average numeric columns
+#    (non-numeric columns like original Date are dropped; month_year stays)
+data_agg <- data %>%
+  group_by(month_year) %>%
+  summarise(across(where(is.numeric), \(x) mean(x, na.rm = TRUE)), .groups = "drop")
+
+
+# Convert month_year to Date (first day of month)
+df$Date <- as.Date(paste0(df$month_year, "-01"))
+
+df <- df %>% select(-c(month_year))
+
 # Shift the GDP column "one up" as requested (places NA at the very end)
 df <- df %>% 
   dplyr::mutate(GDP = dplyr::lead(GDP, n = 1))
