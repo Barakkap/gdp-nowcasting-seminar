@@ -639,7 +639,10 @@ recommendation_to_codes <- function(recommendations) {
     recommendations == "diff+seasonal_diff" ~ 6L,
     recommendations == "logdiff+seasonal_diff" ~ 7L,
     recommendations == "detrend" ~ 8L,
-    recommendations == "detrend+seasonal_diff" ~ 8L,
+    
+    # MAPPING UPDATE: Replaced Linear Detrend (8) with X13 Seasonal Adjustment + Log + Diff (7).    
+    recommendations == "detrend+seasonal_diff" ~ 7L, 
+    
     recommendations == "too_short" ~ 0L,
     TRUE ~ NA_integer_
   )
@@ -648,17 +651,17 @@ recommendation_to_codes <- function(recommendations) {
   
   unsupported <- unique(recommendations[is.na(codes)])
   if (length(unsupported)) {
-    stop("Unsupported transformation recommendation(s): ",
+    stop("Unsupported transformation recommendation(s): ", 
          paste(unsupported, collapse = ", "))
   }
   
+  # עדכון האזהרה בהתאם לשינוי
   if (any(recommendations == "detrend+seasonal_diff", na.rm = TRUE)) {
-    warning("'detrend+seasonal_diff' is mapped to 'detrend'. Review manually if needed.")
+    message("'detrend+seasonal_diff' is now mapped to X13 + Log + Diff (Code 7).")
   }
   
   codes
 }
-
 
 ## ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Optional manual overrides. Use named vectors by block and variable.
