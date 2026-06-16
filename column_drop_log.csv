@@ -1,0 +1,49 @@
+"variable","reason","cv","cor_with_anchor"
+"Total refunds from the Income Tax Department","|cor(anchor)| = 0.0486 (<= 0.15)",8387095039773008,-0.0486
+"Independents advances","|cor(anchor)| = 0.0614 (<= 0.15)",88837194068586544,0.0614
+"Self-employed tax differences","|cor(anchor)| = 0.0388 (<= 0.15)",16266068670541232,0.0388
+"Independent Cancellations","|cor(anchor)| = 0.1406 (<= 0.15)",1410.3856,0.1406
+"self employed returns","|cor(anchor)| = 0.0493 (<= 0.15)",6136400067403463,-0.0493
+"Capital Gains Tax Refunds","|cor(anchor)| = 0.0390 (<= 0.15)",14566775643264408,0.039
+"VAT Financial Institutions (Salary)","|cor(anchor)| = 0.0796 (<= 0.15)",5599823391834801,-0.0796
+"Companies advances","|cor(anchor)| = 0.0435 (<= 0.15)",7235304245973525,0.0435
+"tax differential companies","|cor(anchor)| = 0.0306 (<= 0.15)",14444898086158878,0.0306
+"Cancellation companies","|cor(anchor)| = 0.0674 (<= 0.15)",4.1985,0.0674
+"Income tax for self-employed individuals and companies (advances and deductions)","|cor(anchor)| = 0.0892 (<= 0.15)",32206701665644168,0.0892
+"Companies returns","|cor(anchor)| = 0.0349 (<= 0.15)",23973830521358368,-0.0349
+"excess expenses","|cor(anchor)| = 0.0476 (<= 0.15)",32935838238908816,0.0476
+"Cancellations Deductions","|cor(anchor)| = 0.0444 (<= 0.15)",18545153618696652,0.0444
+"Goods and services","|cor(anchor)| = 0.0344 (<= 0.15)",1043.9795,0.0344
+"VAT refund autonomy and traders","|cor(anchor)| = 0.1148 (<= 0.15)",63.0167,-0.1148
+"Net local sales tax","|cor(anchor)| = 0.0301 (<= 0.15)",7398203895251826,0.0301
+"Gross fuel tax","|cor(anchor)| = 0.0654 (<= 0.15)",238.3723,0.0654
+"Net customs","|cor(anchor)| = 0.0662 (<= 0.15)",558.789,0.0662
+"Net import purchase tax","|cor(anchor)| = 0.0105 (<= 0.15)",17506421409637080,-0.0105
+"Total import taxes","|cor(anchor)| = 0.0064 (<= 0.15)",30065549147705688,-0.0064
+"Real estate taxation","|cor(anchor)| = 0.1207 (<= 0.15)",77.9249,0.1207
+"Property tax","|cor(anchor)| = 0.0496 (<= 0.15)",40.0138,0.0496
+"praise tax","|cor(anchor)| = 0.0531 (<= 0.15)",79.9464,0.0531
+"Real estate purchase tax","|cor(anchor)| = 0.1339 (<= 0.15)",49.5974,0.1339
+"praise tax returns","|cor(anchor)| = 0.0752 (<= 0.15)",6535282197551594,0.0752
+"purchase returns","|cor(anchor)| = 0.0717 (<= 0.15)",88.5243,0.0717
+"Apartments sold at an annual rate","|cor(anchor)| = 0.0409 (<= 0.15)",6324759722304057,0.0409
+"Apartment Price Index (1993=100) - Mid-period reviewed","|cor(anchor)| = 0.0596 (<= 0.15)",2.3538,0.0596
+"cons_trust","|cor(anchor)| = 0.0014 (<= 0.15)",42.1229,0.0014
+"madad meshulav","|cor(anchor)| = 0.0414 (<= 0.15)",1.8047,0.0414
+"madad_cc_purchases_sa","|cor(anchor)| = 0.0145 (<= 0.15)",7.7068,0.0145
+"madad_pedio","|cor(anchor)| = 0.0062 (<= 0.15)",7.1371,-0.0062
+"madad_yetzur_industrial","|cor(anchor)| = 0.0367 (<= 0.15)",10.507,0.0367
+"Oil","|cor(anchor)| = 0.0060 (<= 0.15)",41.4034,0.006
+"real salary","|cor(anchor)| = 0.1232 (<= 0.15)",31.0415,-0.1232
+"salaried jobs","|cor(anchor)| = 0.0730 (<= 0.15)",44.2883,-0.073
+"unemployment rate","|cor(anchor)| = 0.0012 (<= 0.15)",10.3573,0.0012
+"participation rate","|cor(anchor)| = 0.0109 (<= 0.15)",19.542,-0.0109
+"employment rate","|cor(anchor)| = 0.0106 (<= 0.15)",10.4398,-0.0106
+"TA35","|cor(anchor)| = 0.0100 (<= 0.15)",589.7275,-0.01
+"TA125","|cor(anchor)| = 0.0320 (<= 0.15)",6.2856,0.032
+"Nasdaq","|cor(anchor)| = 0.0054 (<= 0.15)",5.9443,0.0054
+"sp500","|cor(anchor)| = 0.0185 (<= 0.15)",5.2589,0.0185
+"Reer","|cor(anchor)| = 0.0818 (<= 0.15)",27.5763,-0.0818
+"Dollar","|cor(anchor)| = 0.0285 (<= 0.15)",5878.7789,0.0285
+"Foreign exchange reserves (millions of dollars)","|cor(anchor)| = 0.0098 (<= 0.15)",3.1314,-0.0098
+"Foreign exchange reserves (millions of shekels)","|cor(anchor)| = 0.0220 (<= 0.15)",4.3698,0.022
