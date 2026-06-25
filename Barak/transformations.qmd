@@ -77,7 +77,7 @@ in this notebook we will take our daily, monthly and quarterly tables, examine t
 ## Import data sets:
 
 ```{r}
-path <- "../PROJ_DFM/nowcasting_data_raw.xlsx"
+path <- ".../Barak/raw data files/nowcasting_data_raw.xlsx"
 ```
 
 ```{r}
@@ -234,7 +234,7 @@ since I didn't automate this yet, manually tracking meta data:
 2.  Oil and FX reserves are adjusted USD and CPI
 
 ```{r}
-save_list_to_excel(blocks_real, "blocks_real.xlsx")
+save_list_to_excel(blocks_real, ".../Barak/transformation data/blocks_real.xlsx")
 ```
 
 ## Seasonality
@@ -246,14 +246,14 @@ in this part we are using MoFi script to treat Israeli seasonality in the data
 load files
 
 ```{r}
-td <- read_csv("../PROJ_DFM/data_for_sa/td_var.csv")
+td <- read_csv(".../Barak/data_for_sa/td_var.csv")
 td_ts <- ts(
   td[, -1],
   start = c(year(min(td$date)), month(min(td$date))),
   frequency = 12
 )
 
-preadj <- read_excel("../PROJ_DFM/data_for_sa/hol_preadj.xlsx") %>%
+preadj <- read_excel(".../Barak/data_for_sa/hol_preadj.xlsx") %>%
   mutate(date = as.Date(date))
 
 hag_ts <- ts(
@@ -450,11 +450,11 @@ write_sa_info <- function(sa_info, file_path = "sa_info.xlsx") {
 ```
 
 ```{r}
-write_sa_info(sa_info, "SA_results_01.xlsx")
+write_sa_info(sa_info, ".../Barak/transformation data/SA_results_01.xlsx")
 ```
 
 ```{r}
-save_list_to_excel(blocks_sa, "blocks_sa_01.xlsx")
+save_list_to_excel(blocks_sa, ".../Barak/transformation data/blocks_sa_01.xlsx")
 ```
 
 ## Transformations
@@ -853,12 +853,12 @@ save_transformation_info <- function(info_list, file_path = "transformation_info
 ```
 
 ```{r}
-save_transformation_info(transformation_info, "TRANSFORMATION_INFO.xlsx")
+save_transformation_info(transformation_info, ".../Barak/transformation data/TRANSFORMATION_INFO.xlsx")
 
 ```
 
 ```{r}
-save_list_to_excel(blocks_transformed, "blocks_transformed.xlsx")
+save_list_to_excel(blocks_transformed, ".../Barak/transformation data/blocks_transformed.xlsx")
 ```
 
 ### Conclusions
@@ -1030,13 +1030,13 @@ shift_report$FX_liqudity <- out$report
 ### Save Results
 
 ```{r}
-blocks_shifted_path <- "../PROJ_DFM/lag_adjusted/blocks_shifted.xlsx"
+blocks_shifted_path <- ".../Barak/transformation data/blocks_shifted.xlsx"
 
 save_list_to_excel(blocks_shifted, blocks_shifted_path)
 ```
 
 ```{r}
-save_transformation_info(shift_report, "shift_report.xlsx")
+save_transformation_info(shift_report, ".../Barak/transformation data/shift_report.xlsx")
 ```
 
 # Create Unified Table for Modeling
@@ -1046,7 +1046,7 @@ this script takes your transformed data and turn it into unified sheet that fits
 ```{r}
 # Input: multi-sheet transformed + lag-adjusted workbook
 if (!exists("blocks_shifted_path")) {
-  blocks_shifted_path <- "../PROJ_DFM/lag_adjusted/blocks_shifted.xlsx"
+  blocks_shifted_path <- ".../Barak/transformation data/blocks_shifted.xlsx"
 }
 
 input_path <- blocks_shifted_path
@@ -1168,3 +1168,11 @@ openxlsx::write.xlsx(
 message("Saved: ", output_path)
 
 ```
+
+------------------------------------------------------------------------
+
+# ...existing code...
+
+\`\`\`{r} td \<- read_csv("../PROJ_DFM/data_for_sa/td_var.csv") td_ts \<- ts( td\[, -1\], start = c(year(min(td$date)), month(min(td$date))), frequency = 12 )
+
+preadj \<- read_excel("../PROJ_DFM/data_for_sa/hol_preadj.xlsx") %\>% mutate(date = as.Date(date)) \# ...existing code... \`\`\`{r} \# Input: multi-sheet transformed + lag-adjusted workbook if (!exists("blocks_shifted_path")) { blocks_shifted_path \<- "../PROJ_DFM/lag_adjusted/blocks_shifted.xlsx" } \# ...existing code...
