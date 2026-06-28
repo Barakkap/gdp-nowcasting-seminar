@@ -77,7 +77,7 @@ in this notebook we will take our daily, monthly and quarterly tables, examine t
 ## Import data sets:
 
 ```{r}
-path <- ".../Barak/raw data files/nowcasting_data_raw.xlsx"
+path <- "Barak/raw data files/nowcasting_data_raw.xlsx"
 ```
 
 ```{r}
@@ -234,7 +234,7 @@ since I didn't automate this yet, manually tracking meta data:
 2.  Oil and FX reserves are adjusted USD and CPI
 
 ```{r}
-save_list_to_excel(blocks_real, ".../Barak/transformation data/blocks_real.xlsx")
+save_list_to_excel(blocks_real, "Barak/transformation data/blocks_real.xlsx")
 ```
 
 ## Seasonality
@@ -246,14 +246,14 @@ in this part we are using MoFi script to treat Israeli seasonality in the data
 load files
 
 ```{r}
-td <- read_csv(".../Barak/data_for_sa/td_var.csv")
+td <- read_csv("Barak/data_for_sa/td_var.csv")
 td_ts <- ts(
   td[, -1],
   start = c(year(min(td$date)), month(min(td$date))),
   frequency = 12
 )
 
-preadj <- read_excel(".../Barak/data_for_sa/hol_preadj.xlsx") %>%
+preadj <- read_excel("Barak/data_for_sa/hol_preadj.xlsx") %>%
   mutate(date = as.Date(date))
 
 hag_ts <- ts(
@@ -450,11 +450,11 @@ write_sa_info <- function(sa_info, file_path = "sa_info.xlsx") {
 ```
 
 ```{r}
-write_sa_info(sa_info, ".../Barak/transformation data/SA_results_01.xlsx")
+write_sa_info(sa_info, "Barak/transformation data/SA_results_01.xlsx")
 ```
 
 ```{r}
-save_list_to_excel(blocks_sa, ".../Barak/transformation data/blocks_sa_01.xlsx")
+save_list_to_excel(blocks_sa, "Barak/transformation data/blocks_sa_01.xlsx")
 ```
 
 ## Transformations
@@ -853,12 +853,12 @@ save_transformation_info <- function(info_list, file_path = "transformation_info
 ```
 
 ```{r}
-save_transformation_info(transformation_info, ".../Barak/transformation data/TRANSFORMATION_INFO.xlsx")
+save_transformation_info(transformation_info, "Barak/transformation data/TRANSFORMATION_INFO.xlsx")
 
 ```
 
 ```{r}
-save_list_to_excel(blocks_transformed, ".../Barak/transformation data/blocks_transformed.xlsx")
+save_list_to_excel(blocks_transformed, "Barak/transformation data/blocks_transformed.xlsx")
 ```
 
 ### Conclusions
@@ -960,42 +960,78 @@ labor data released 64 days after EoM was stored 03/01/2012 is now 06/01/2012\
 ### Create Function
 
 ```{r}
-shift_by_vector <- function(df, vec) {
-  # df: data.frame where the first column is 'Date'
-  # vec: numeric vector of lags, matching columns 2..n of df
+# shift_by_vector <- function(df, vec) {
+#   # df: data.frame where the first column is 'Date'
+#   # vec: numeric vector of lags, matching columns 2..n of df
   
-  # Sanity check
-  if (length(vec) != (ncol(df) - 1)) {
-    stop("Length of vec must match number of data columns (excluding Date).")
-  }
+#   # Sanity check
+#   if (length(vec) != (ncol(df) - 1)) {
+#     stop("Length of vec must match number of data columns (excluding Date).")
+#   }
   
+#   df_shifted <- df
+  
+#   # Prepare the report
+#   report <- data.frame(
+#     variable = colnames(df)[-1],
+#     lag_applied = vec,
+#     stringsAsFactors = FALSE
+#   )
+  
+#   # Apply shifts
+#   for (i in seq_along(vec)) {
+#     k <- vec[i]
+#     var <- colnames(df)[i + 1]   # +1 to skip Date
+    
+#     if (!is.numeric(df[[var]])) {
+#       warning(paste("Column", var, "is not numeric — skipped."))
+#       next
+#     }
+    
+#     if (k > 0) {
+#       # Shift forward: NA at the top, drop the last k values
+#       df_shifted[[var]] <- c(rep(NA, k), df[[var]][1:(nrow(df) - k)])
+#     } else {
+#       # k == 0: no change
+#       df_shifted[[var]] <- df[[var]]
+#     }
+#   }
+  
+#   return(list(
+#     data = df_shifted,
+#     report = report
+#   ))
+# }
+```
+
+```{r}
+shift_block_by_named_lags <- function(df, lags) {
+  
+  vars <- setdiff(names(df), "Date")
   df_shifted <- df
   
-  # Prepare the report
-  report <- data.frame(
-    variable = colnames(df)[-1],
-    lag_applied = vec,
-    stringsAsFactors = FALSE
-  )
-  
-  # Apply shifts
-  for (i in seq_along(vec)) {
-    k <- vec[i]
-    var <- colnames(df)[i + 1]   # +1 to skip Date
+  for (var in vars) {
     
-    if (!is.numeric(df[[var]])) {
-      warning(paste("Column", var, "is not numeric — skipped."))
-      next
+    if (!var %in% names(lags)) {
+      warning(paste("No lag defined for variable:", var, "- using 0"))
+      k <- 0
+    } else {
+      k <- lags[[var]]
     }
     
-    if (k > 0) {
-      # Shift forward: NA at the top, drop the last k values
-      df_shifted[[var]] <- c(rep(NA, k), df[[var]][1:(nrow(df) - k)])
-    } else {
-      # k == 0: no change
+    if (k == 0) {
       df_shifted[[var]] <- df[[var]]
+    } else {
+      df_shifted[[var]] <- dplyr::lag(df[[var]], n = k)
     }
   }
+  
+  report <- data.frame(
+    variable = vars,
+    lag_months = sapply(vars, function(v) {
+      if (v %in% names(lags)) lags[[v]] else 0
+    })
+  )
   
   return(list(
     data = df_shifted,
@@ -1009,34 +1045,120 @@ shift_by_vector <- function(df, vec) {
 initiate
 
 ```{r}
-blocks_shifted <- blocks_transformed
-shift_report <- list()
+# blocks_shifted <- blocks_transformed
+# shift_report <- list()
 ```
 
 run for each block
 
 ```{r}
-block <- blocks_transformed$FX_liqudity # choose your block
-lags <- c(1,0,1) # rep(val, n)
+# block <- blocks_transformed$FX_liqudity # choose your block
+# lags <- c(
+#   "REER" = 1,
+#   "Dollar" = 0,
+#   "Foreign exchange reserves (millions of dollars)" = 1
+# )
 ```
 
 ```{r}
-out <- shift_by_vector(block, lags)
+# out <- shift_by_vector(block, lags)
 
-blocks_shifted$FX_liqudity <- out$data
-shift_report$FX_liqudity <- out$report
+# blocks_shifted$FX_liqudity <- out$data
+# shift_report$FX_liqudity <- out$report
+```
+
+```{r}
+release_lags <- list(
+  
+  personal_labor_income_taxes = 1,
+  corporate_business_tax      = 1,
+  consumption_tax             = 1,
+  import_trade_tax            = 1,
+  real_estate                 = 1,
+  real_activity               = 2,
+  labor                       = 2,
+  capital_markets             = 0,
+  
+FX_liqudity = c(
+  Reer = 1,
+  Dollar = 0,
+  "Foreign exchange reserves (millions of dollars)" = 1
+)
+)
+```
+
+```{r}
+blocks_shifted <- blocks_transformed
+shift_report <- list()
+
+for (sheet_name in names(release_lags)) {
+  
+  if (!sheet_name %in% names(blocks_transformed)) {
+    warning(paste("Sheet not found in blocks_transformed:", sheet_name))
+    next
+  }
+  
+  block <- blocks_transformed[[sheet_name]]
+  vars <- setdiff(names(block), "Date")
+  lag_def <- release_lags[[sheet_name]]
+  
+  # Case 1: one lag for the whole sheet
+  if (length(lag_def) == 1 && is.null(names(lag_def))) {
+    
+    lags <- setNames(
+      rep(lag_def, length(vars)),
+      vars
+    )
+    
+  # Case 2: different lag for each variable
+  } else {
+    
+    lags <- lag_def
+    
+    missing_vars <- setdiff(vars, names(lags))
+    
+    if (length(missing_vars) > 0) {
+      warning(
+        paste(
+          "Missing lag definition in sheet",
+          sheet_name,
+          "for variables:",
+          paste(missing_vars, collapse = ", "),
+          "- using 0"
+        )
+      )
+      
+      lags <- c(
+        lags,
+        setNames(rep(0, length(missing_vars)), missing_vars)
+      )
+    }
+  }
+  
+  out <- shift_block_by_named_lags(
+    df = block,
+    lags = lags
+  )
+  
+  blocks_shifted[[sheet_name]] <- out$data
+  
+  shift_report[[sheet_name]] <- out$report |>
+    dplyr::mutate(sheet = sheet_name)
+}
+
+shift_report <- dplyr::bind_rows(shift_report)
 ```
 
 ### Save Results
 
 ```{r}
-blocks_shifted_path <- ".../Barak/transformation data/blocks_shifted.xlsx"
+blocks_shifted_path <- "Barak/transformation data/blocks_shifted.xlsx"
 
 save_list_to_excel(blocks_shifted, blocks_shifted_path)
 ```
 
 ```{r}
-save_transformation_info(shift_report, ".../Barak/transformation data/shift_report.xlsx")
+save_transformation_info(shift_report, "Barak/transformation data/shift_report.xlsx")
 ```
 
 # Create Unified Table for Modeling
@@ -1046,13 +1168,13 @@ this script takes your transformed data and turn it into unified sheet that fits
 ```{r}
 # Input: multi-sheet transformed + lag-adjusted workbook
 if (!exists("blocks_shifted_path")) {
-  blocks_shifted_path <- ".../Barak/transformation data/blocks_shifted.xlsx"
+  blocks_shifted_path <- "Barak/transformation data/blocks_shifted.xlsx"
 }
 
 input_path <- blocks_shifted_path
 
 # Output: one-sheet panel for DFM
-output_path <- "../PROJ_DFM/combined_monthly_panel_Q_refined.xlsx"
+output_path <- "Barak/transformation data/combined_monthly_panel_Q_refined.xlsx"
 
 # Read sheet names, excluding adjusters
 sheets <- readxl::excel_sheets(input_path)

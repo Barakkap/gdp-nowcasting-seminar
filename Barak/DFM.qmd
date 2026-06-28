@@ -28,7 +28,7 @@ Your data frame should be from the higher frequency (monthly \> quarterly), then
 
 ```{r}
 
-df <- read_excel("../PROJ_DFM/combined_monthly_panel_Q_refined.xlsx")
+df <- read_excel("Barak/transformation data/combined_monthly_panel_Q_refined.xlsx")
 
 df$Date <- as.Date(df$Date)
 
@@ -71,17 +71,44 @@ function below helps selecting "P" variable, this variable determines the amount
 
 ```{r}
 #                                     1:4 is for 4 factors, 1:2 is 2 factors...
-var_q <- VARselect(ICr_report$F_pca[, 1:4])
+var_q <- VARselect(ICr_report$F_pca[, 1:6])
 var_q
 ```
 
 after running the one above we need to visually inspect the "elbow" shape then select between the 4 methods results for "P"
 
 ```{r}
-plot(var_q$criteria["AIC(n)",])
-plot(var_q$criteria["HQ(n)",])
-plot(var_q$criteria["SC(n)",])
-plot(var_q$criteria["FPE(n)",])
+plot(
+  var_q$criteria["AIC(n)", ],
+  type = "b",
+  main = "AIC Criterion by VAR Lag Order",
+  xlab = "Lag order (p)",
+  ylab = "AIC value"
+)
+
+plot(
+  var_q$criteria["HQ(n)", ],
+  type = "b",
+  main = "HQ Criterion by VAR Lag Order",
+  xlab = "Lag order (p)",
+  ylab = "HQ value"
+)
+
+plot(
+  var_q$criteria["SC(n)", ],
+  type = "b",
+  main = "SC/BIC Criterion by VAR Lag Order",
+  xlab = "Lag order (p)",
+  ylab = "SC/BIC value"
+)
+
+plot(
+  var_q$criteria["FPE(n)", ],
+  type = "b",
+  main = "FPE Criterion by VAR Lag Order",
+  xlab = "Lag order (p)",
+  ylab = "FPE value"
+)
 ```
 
 parameters pairs examples:\
@@ -110,7 +137,7 @@ unscale_var <- function(dfm_obj, var_name, std_value) {
 
 ```{r}
 # --- Load Data ---
-df <- read_excel("../PROJ_DFM/combined_monthly_panel_Q_refined.xlsx")
+df <- read_excel("Barak/transformation data/combined_monthly_panel_Q_refined.xlsx")
 df$Date <- as.Date(df$Date)
 ```
 
@@ -173,8 +200,8 @@ for (i in seq_along(cutoff_months)) {
 
   dfm_curr <- DFM(
     X = X_xts,
-    r = 4,
-    p = 2,
+    r = 6,
+    p = 3,
     quarterly.vars = "GDP",
     em.method = "BM"
   )
@@ -198,6 +225,66 @@ for (i in seq_along(cutoff_months)) {
   if (h_val == 2) results_report$h2_fcst[target_row] <- gdp_fcst
   if (h_val == 3) results_report$h3_fcst[target_row] <- gdp_fcst
 }
+```
+
+```{r}
+# ------------------------------------------------------------
+# Forecast only for the latest available information month
+# ------------------------------------------------------------
+
+indicator_cols <- setdiff(names(df), c("Date", "GDP"))
+
+has_indicator_data <- rowSums(!is.na(df[, indicator_cols])) > 0
+
+cutoff <- max(df$Date[has_indicator_data], na.rm = TRUE)
+
+month_i <- lubridate::month(cutoff)
+
+if (month_i %in% c(1, 4, 7, 10)) {
+  h_val <- 3
+} else if (month_i %in% c(2, 5, 8, 11)) {
+  h_val <- 2
+} else {
+  h_val <- 1
+}
+
+df_sub <- df[df$Date <= cutoff, ]
+
+X_xts <- xts::xts(
+  as.matrix(df_sub[, !(names(df_sub) == "Date")]),
+  order.by = df_sub$Date
+)
+
+X_xts[nrow(X_xts), "GDP"] <- NA
+
+dfm_curr <- DFM(
+  X = X_xts,
+  r = 4,
+  p = 2,
+  quarterly.vars = "GDP",
+  em.method = "BM"
+)
+
+pred <- predict(dfm_curr, h = h_val, standardized = FALSE)
+
+gdp_fcst <- pred$X_fcst[h_val, "GDP"]
+
+# Add h_val months to cutoff
+target_date <- seq.Date(
+  from = cutoff,
+  by = "month",
+  length.out = h_val + 1
+)[h_val + 1]
+
+current_forecast <- data.frame(
+  cutoff_date = cutoff,
+  target_date = target_date,
+  horizon = paste0("h", h_val),
+  gdp_forecast_logdiff = gdp_fcst,
+  gdp_growth_percent = (exp(gdp_fcst) - 1) * 100
+)
+
+current_forecast
 ```
 
 ## Results and Analysis
@@ -244,7 +331,7 @@ quarterly_fcst$Date <- as.Date(quarterly_fcst$Date)
 save the quarterly forecast results
 
 ```{r}
-write_forecast_info(quarterly_fcst, "quarterly_fcst.xlsx")
+write_forecast_info(quarterly_fcst, "Barak/transformation data/quarterly_fcst.xlsx")
 ```
 
 Calculate RMSE and MAE for each forecast horizon
