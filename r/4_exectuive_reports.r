@@ -203,8 +203,10 @@ for (h in 0:3) {
   }
 }
 
-# AR(1) Benchmark
+# Extracting RMSE for h0 to be used in the reports later
 rmse_h0 <- horizon_comparison$RMSE[1]
+
+# AR(1) Benchmark
 benchmark_data <- oos_results %>%
   dplyr::select(Date, GDP, GDP_FCST_h0) %>%
   filter(!is.na(GDP)) %>% mutate(GDP_lag1 = lag(GDP)) %>% filter(!is.na(GDP_lag1))
@@ -264,7 +266,7 @@ var_Sector_map <- bind_rows(block_map_list)
 
 
 # ==============================================================================
-# 9. GENERATE 4 EXECUTIVE REPORTS (FOR THE LAST 4 MONTHS)
+# 9. GENERATE 4 EXECUTIVE REPORTS (WITH DYNAMIC RMSE & SMART NAMING)
 # ==============================================================================
 cat("\nGenerating Executive Reports for the last 4 periods...\n")
 report_indices <- (nrow(results) - 3):nrow(results)
@@ -272,16 +274,38 @@ report_indices <- (nrow(results) - 3):nrow(results)
 for (target_idx in report_indices) {
   
   current_date <- results$Date[target_idx]
-  cat(sprintf("\n--- Processing Report for Month: %s ---\n", current_date))
   
-  # Get inputs for this specific month
+  # --- 1. DETERMINE QUARTER, STAGE, AND SMART FILE NAME ---
+  q_val <- lubridate::quarter(current_date)
+  y_val <- lubridate::year(current_date)
+  m_val <- lubridate::month(current_date)
+  m_name <- format(current_date, "%b")
+  
+  # Determine stage based on month of the quarter
+  if (m_val %% 3 == 1) {
+    stage <- "Early_Forecast"
+  } else if (m_val %% 3 == 2) {
+    stage <- "Mid_Quarter_Update"
+  } else {
+    stage <- "Final_Nowcast"
+  }
+  
+  file_name <- sprintf("Q%d-%d_%s_(%s-Data).xlsx", q_val, y_val, stage, m_name)
+  cat(sprintf("\n--- Processing Report: %s ---\n", file_name))
+  
+  # --- 2. CALCULATE DYNAMIC RMSE FOR THIS SPECIFIC TIMELINE ---
+  # Only use out-of-sample data available UP TO the current report date
+  eval_sub <- oos_results %>% 
+    filter(Date <= current_date, !is.na(GDP), !is.na(GDP_FCST_h0))
+  
+  dynamic_rmse <- sqrt(mean((eval_sub$GDP - eval_sub$GDP_FCST_h0)^2))
+  
+  # --- 3. RUN PREDICTIONS FOR CURRENT MONTH ---
   current_factors <- as.matrix(results[target_idx, c("h0_f1", "h0_f2", "h0_f3", "h0_f4")])
   colnames(current_factors) <- c("f1", "f2", "f3", "f4")
   
-  # A. XGBoost & DFM Predictions
   current_gdp_nowcast <- predict(xgb_model_final, current_factors)
   
-  # Recalculate GDP mean/sd up to this month to maintain accurate scaling
   df_loop <- df[df$Date <= current_date, ]
   gdp_mean <- mean(df_loop$GDP, na.rm = TRUE)
   gdp_sd   <- sd(df_loop$GDP, na.rm = TRUE)
@@ -292,13 +316,20 @@ for (target_idx in report_indices) {
   ensemble_gdp_nowcast <- (w_xgb * current_gdp_nowcast) + (w_dfm * dfm_gdp_nowcast)
   nowcast_gdp_level_ens <- base_level * (1 + ensemble_gdp_nowcast)
   
-  # B. Attribution (News & Impacts)
+  xgb_annualized      <- ((1 + current_gdp_nowcast)^4) - 1
+  dfm_annualized      <- ((1 + dfm_gdp_nowcast)^4) - 1
+  ensemble_annualized <- ((1 + ensemble_gdp_nowcast)^4) - 1
+  
+  cat(sprintf("XGBoost: %.2f%% | DFM: %.2f%% | Ensemble: %.2f%%\n", 
+              xgb_annualized*100, dfm_annualized*100, ensemble_annualized*100))
+  cat(sprintf("Dynamic Model RMSE at this date: %.4f\n", dynamic_rmse))
+  
+  # --- 4. ATTRIBUTION & LINEAR ALGEBRA ---
   shap_matrix <- predict(xgb_model_final, current_factors, predcontrib = TRUE)
   shap_vals <- as.numeric(shap_matrix)[1:4]
   dfm_factor_impacts <- gdp_loadings * current_factors[1, 1:4] * gdp_sd
   ensemble_factor_impacts <- (w_xgb * shap_vals) + (w_dfm * dfm_factor_impacts)
   
-  # C. Map back to Variables
   raw_drivers <- df_loop[, rownames(loadings_drivers)]
   scaled_drivers <- scale(raw_drivers)
   current_X <- as.numeric(scaled_drivers[nrow(scaled_drivers), ])
@@ -323,7 +354,7 @@ for (target_idx in report_indices) {
     var_contributions <- var_contributions + (rel_weights * f_impact)
   }
   
-  # D. Build Reporting DataFrames
+  # --- 5. BUILD REPORTING DATAFRAMES ---
   news_report <- data.frame(
     Variable = names(var_contributions), Ensemble_Impact = var_contributions, stringsAsFactors = FALSE
   ) %>%
@@ -340,12 +371,12 @@ for (target_idx in report_indices) {
     ) %>%
     arrange(desc(abs(Total_Impact)))
   
-  # E. Create Visuals
+  # --- 6. GENERATE PLOTS ---
   p_Sector <- ggplot(Sector_report, aes(x = reorder(Sector, Total_Impact), y = Total_Impact, fill = Total_Impact > 0)) +
     geom_col() + coord_flip() +
     scale_fill_manual(values = c("TRUE" = "darkgreen", "FALSE" = "darkred")) +
     theme_minimal() +
-    labs(title = sprintf("GDP Nowcast Drivers by Sector (%s)", format(current_date, "%b %Y")),
+    labs(title = sprintf("GDP Nowcast Drivers by Sector (%s)", m_name),
          subtitle = "Combined XGBoost SHAP + DFM Linear Impacts",
          x = "Sector", y = "Contribution to GDP Growth Rate") +
     theme(legend.position = "none")
@@ -355,20 +386,17 @@ for (target_idx in report_indices) {
     geom_col() + coord_flip() +
     scale_fill_manual(values = c("TRUE" = "darkgreen", "FALSE" = "darkred")) +
     theme_minimal() +
-    labs(title = sprintf("Top 15 Variable Drivers for Current GDP Nowcast (%s)", format(current_date, "%b %Y")),
+    labs(title = sprintf("Top 15 Variable Drivers for Current GDP Nowcast (%s)", m_name),
          x = "Specific Variable", y = "Contribution to GDP Growth Rate") +
     theme(legend.position = "none")
   
-  # F. Build Excel Workbook
-  news_export <- news_report %>%
-    select(Variable, Sector, `Total Impact` = Ensemble_Impact, `Relative Share (%)` = Relative_Share_Pct)
-  Sector_export <- Sector_report %>%
-    select(Sector, `Total Impact` = Total_Impact, `Relative Share (%)` = Relative_Share_Pct)
+  # --- 7. EXPORT TO EXCEL ---
+  news_export <- news_report %>% select(Variable, Sector, `Total Impact` = Ensemble_Impact, `Relative Share (%)` = Relative_Share_Pct)
+  Sector_export <- Sector_report %>% select(Sector, `Total Impact` = Total_Impact, `Relative Share (%)` = Relative_Share_Pct)
   
   wb <- createWorkbook()
   modifyBaseFont(wb, fontSize = 11, fontName = "Calibri")
   
-  # Styles
   header_style <- createStyle(fontSize = 12, fontColour = "#FFFFFF", halign = "center", valign = "center", fgFill = "#1E3A8A", textDecoration = "bold", border = "Bottom")
   pct_style    <- createStyle(numFmt = "0.00%", halign = "right")
   float_style  <- createStyle(numFmt = "0.00000", halign = "right")
@@ -376,23 +404,29 @@ for (target_idx in report_indices) {
   pos_style    <- createStyle(fontColour = "#15803D")
   neg_style    <- createStyle(fontColour = "#B91C1C")
   
-  # Sheet 1: Dashboard
   addWorksheet(wb, "Dashboard")
   showGridLines(wb, "Dashboard", showGridLines = FALSE)
   setColWidths(wb, "Dashboard", cols = 1, widths = 3)
   
+  # Inject the Dynamic RMSE into the Summary Table
   summary_df <- data.frame(
-    Metric = c("XGBoost Nowcast", "DFM Nowcast", "Ensemble Growth", "Ensemble GDP Level"),
-    Value = c(current_gdp_nowcast, dfm_gdp_nowcast, ensemble_gdp_nowcast, nowcast_gdp_level_ens)
+    Metric = c("XGBoost Nowcast (Quarterly)", "XGBoost (Annualized)", 
+               "DFM Nowcast (Quarterly)", "DFM (Annualized)", 
+               "Ensemble Growth (Quarterly)", "Ensemble (Annualized)", 
+               "Ensemble GDP Level", "Model Trailing RMSE (h0)"),
+    Value = c(current_gdp_nowcast, xgb_annualized, 
+              dfm_gdp_nowcast, dfm_annualized, 
+              ensemble_gdp_nowcast, ensemble_annualized, 
+              nowcast_gdp_level_ens, dynamic_rmse)
   )
   
   writeData(wb, "Dashboard", summary_df, startRow = 2, startCol = 2, headerStyle = header_style, borders = "rows")
-  addStyle(wb, "Dashboard", style = pct_style, rows = 3:5, cols = 3, gridExpand = TRUE)
-  addStyle(wb, "Dashboard", style = large_num, rows = 6, cols = 3, gridExpand = TRUE)
-  setColWidths(wb, "Dashboard", cols = 2, widths = 25)
+  addStyle(wb, "Dashboard", style = pct_style, rows = 3:8, cols = 3, gridExpand = TRUE) 
+  addStyle(wb, "Dashboard", style = large_num, rows = 9, cols = 3, gridExpand = TRUE)   
+  addStyle(wb, "Dashboard", style = pct_style, rows = 10, cols = 3, gridExpand = TRUE)  
+  setColWidths(wb, "Dashboard", cols = 2, widths = 35) 
   setColWidths(wb, "Dashboard", cols = 3, widths = 20)
   
-  # Inject Plots
   tmp_Sector <- tempfile(fileext = ".png")
   ggsave(tmp_Sector, p_Sector, width = 8, height = 5, dpi = 300)
   insertImage(wb, "Dashboard", tmp_Sector, width = 8, height = 5, startCol = 5, startRow = 2)
@@ -401,7 +435,6 @@ for (target_idx in report_indices) {
   ggsave(tmp_vars, p_vars, width = 8, height = 6, dpi = 300)
   insertImage(wb, "Dashboard", tmp_vars, width = 8, height = 6, startCol = 5, startRow = 28)
   
-  # Sheet 2: Sector Impact
   addWorksheet(wb, "Sector Impact")
   showGridLines(wb, "Sector Impact", showGridLines = FALSE)
   writeData(wb, "Sector Impact", Sector_export, startRow = 1, startCol = 1, headerStyle = header_style, borders = "rows")
@@ -412,7 +445,6 @@ for (target_idx in report_indices) {
   conditionalFormatting(wb, "Sector Impact", cols = 2, rows = 2:(nrow(Sector_export)+1), rule = ">0", style = pos_style)
   conditionalFormatting(wb, "Sector Impact", cols = 2, rows = 2:(nrow(Sector_export)+1), rule = "<0", style = neg_style)
   
-  # Sheet 3: Variable Impact
   addWorksheet(wb, "Variable Impact")
   showGridLines(wb, "Variable Impact", showGridLines = FALSE)
   writeData(wb, "Variable Impact", news_export, startRow = 1, startCol = 1, headerStyle = header_style, borders = "rows")
@@ -424,8 +456,7 @@ for (target_idx in report_indices) {
   conditionalFormatting(wb, "Variable Impact", cols = 3, rows = 2:(nrow(news_export)+1), rule = ">0", style = pos_style)
   conditionalFormatting(wb, "Variable Impact", cols = 3, rows = 2:(nrow(news_export)+1), rule = "<0", style = neg_style)
   
-  # Save Workbook
-  output_file <- file.path(output_dir, sprintf("Nowcast_Executive_Report_%s.xlsx", format(current_date, "%Y_%m")))
+  output_file <- file.path(output_dir, file_name)
   if (!is_shiny) {
     saveWorkbook(wb, output_file, overwrite = TRUE)
     cat(sprintf("✓ Saved Report: %s\n", output_file))
