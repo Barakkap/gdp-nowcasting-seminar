@@ -26,13 +26,13 @@ ui <- fluidPage(
         cursor: pointer;
         color: #0056b3;
         font-weight: 600;
-        padding: 8px;
+        padding: 6px 8px;
         border-radius: 4px;
         transition: background-color 0.2s ease;
-        list-style: none;
+        list-style: none; /* Hide default browser marker */
       }
       details summary::-webkit-details-marker {
-        display: none;
+        display: none; /* Hide default webkit marker */
       }
       /* Custom animated dropdown arrow */
       details summary::before {
@@ -50,13 +50,14 @@ ui <- fluidPage(
       }
       details[open] summary {
         background-color: #e2e6ea;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
       }
       /* Internal scrollable container for long documentation */
       .guide-container {
-        max-height: 520px;
+        max-height: 480px;
         overflow-y: auto;
         padding-right: 8px;
+        margin-top: 8px;
       }
       .guide-table {
         font-size: 0.85em;
@@ -73,11 +74,77 @@ ui <- fluidPage(
   
   sidebarLayout(
     sidebarPanel(
-      # --- COLLAPSIBLE DOCUMENTATION GUIDE ---
+      # --- COLLAPSIBLE DOCUMENTATION WELL ---
       div(
         class = "well",
-        style = "background-color: #f5f5f5; padding: 10px; margin-bottom: 20px;",
+        style = "background-color: #f5f5f5; padding: 12px; margin-bottom: 20px;",
         
+        # Dropdown 1: Application Instructions
+        tags$details(
+          tags$summary("How to use this application"),
+          div(
+            style = "margin-top: 8px; padding-left: 5px;",
+            tags$ol(
+              tags$li("Upload your raw Excel file (.xlsx) conforming to the required 12-sheet structure."),
+              tags$li("Click 'Check Best Factors & Lags' to inspect diagnostic recommendations."),
+              tags$li("OPTIONAL: Adjust the DFM parameters (r = factors, p = lags). Click on \"About DFM Parameters\" to learn more."),
+              tags$li("Click 'Run Pipeline' – track output in the Execution Logs tab."),
+              tags$li("Download the generated Excel report or the raw predictions CSV upon completion.")
+            ),
+            p("The pipeline performs seasonal adjustment, data transformation, factor extraction, XGBoost modeling, and generates a nowcast report.", 
+              style = "margin-top: 8px; font-size: 0.9em; color: #555;")
+          )
+        ),
+        
+        hr(style = "margin: 10px 0; border-top: 1px solid #ddd;"),
+        
+        # Dropdown 2: Model Parameter Guide & Diagnostics
+        tags$details(
+          tags$summary("About DFM Parameters"),
+          div(
+            style = "margin-top: 8px; padding-left: 5px;",
+            p("Dynamic Factor Models (DFM) summarize information from a large panel of macroeconomic time series into a few unobserved common factors."),
+            
+            tags$ul(
+              tags$li(
+                tags$b("r (factors): "), 
+                "Number of static/dynamic factors extracted from the monthly predictor panel.",
+                tags$br(),
+                tags$span("💡 4 factors is usually the correct amount to capture core macroeconomic trends without introducing excess noise.", style = "color: #555; font-size: 0.9em;")
+              ),
+              tags$li(
+                tags$b("p (lags): "), 
+                "Lag order of the vector autoregression (VAR) governing factor dynamics.",
+                tags$br(),
+                tags$span("💡 3 lags is usually best because the data is quarterly (monthly series mapped to quarterly GDP horizons).", style = "color: #555; font-size: 0.9em;")
+              )
+            ),
+            
+            hr(style = "margin: 10px 0; border-top: 1px dashed #ccc;"),
+            
+            tags$strong("How to Run Diagnostics:"),
+            tags$ol(
+              style = "margin-top: 4px;",
+              tags$li("Click ", tags$b("'Check Best Factors & Lags'"), " in the sidebar."),
+              tags$li("Click on the ", tags$b("'Diagnostics'"), " tab in the main panel and wait for the execution to finish.")
+            ),
+            
+            # Warning Box
+            div(
+              style = "background-color: #fff3cd; color: #856404; padding: 10px; border-left: 4px solid #ffebaA; border-radius: 4px; margin-top: 10px; font-size: 0.88em;",
+              tags$strong("⚠️ Important Warnings:"),
+              tags$ul(
+                style = "margin-bottom: 0; margin-top: 4px; padding-left: 18px;",
+                tags$li(tags$b("Example Visuals: "), "The initial graphs displayed in the Diagnostics tab are illustrative examples, not your uploaded data's results."),
+                tags$li(tags$b("Read Carefully: "), "Make sure to read the diagnostic output instructions carefully before selecting your final lags.")
+              )
+            )
+          )
+        ),
+        
+        hr(style = "margin: 10px 0; border-top: 1px solid #ddd;"),
+        
+        # Dropdown 3: Data Specification Guide
         tags$details(
           tags$summary("Data File Specification & Upload Guide"),
           
@@ -174,8 +241,7 @@ ui <- fluidPage(
         )
       ),
       
-      fileInput("raw_data", "1. Upload Raw Data (Excel)",
-                accept = c(".xlsx")),
+      fileInput("raw_data", "1. Upload Raw Data (Excel)", accept = c(".xlsx")),
       
       actionButton("diag_btn", "Check Best Factors & Lags", class = "btn-warning", style = "width: 100%; margin-bottom: 20px;"),
       
