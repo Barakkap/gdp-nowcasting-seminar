@@ -210,7 +210,6 @@ server <- function(input, output, session) {
                   tags$strong(if (is_he) "⚠️ אזהרות חשובות:" else "⚠️ Important Warnings:"),
                   tags$ul(
                     style = "margin-bottom: 0; margin-top: 4px; padding-left: 18px; padding-right: 18px;",
-                    tags$li(tags$b(if (is_he) "גרפים להמחשה: " else "Example Visuals: "), if (is_he) "הגרפים הראשונים המוצגים בלשונית הדיאגנוסטיקה הם דוגמה בלבד ולא תוצאות הקובץ שהועלה." else "The initial graphs displayed in the Diagnostics tab are illustrative examples, not your uploaded data's results."),
                     tags$li(tags$b(if (is_he) "קרא בעיון: " else "Read Carefully: "), if (is_he) "הקפד לקרוא את הוראות הדיאגנוסטיקה בעיון לפני בחירת הפיגורים הסופיים." else "Make sure to read the diagnostic output instructions carefully before selecting your final lags.")
                   )
                 )
@@ -340,7 +339,8 @@ server <- function(input, output, session) {
             tabPanel(if (is_he) "דיאגנוסטיקה" else "Diagnostics",
                      value = "diagnostics",
                      br(),
-                     uiOutput("diag_ui")
+                     # NEW: withMathJax renders mathematical formulas correctly
+                     withMathJax(uiOutput("diag_ui"))
             )
           )
         )
@@ -428,6 +428,7 @@ server <- function(input, output, session) {
     })
   })
   
+  # --- NEW: Dynamic Diagnostics Page Layout ---
   output$diag_ui <- renderUI({
     is_he <- lang() == "he"
     if (is.null(rv$diag_res)) {
@@ -437,18 +438,54 @@ server <- function(input, output, session) {
     
     fluidRow(
       column(12,
-             h4(if (is_he) "המלצות דיאגנוסטיקה" else "Diagnostics Recommendation"),
+             h3(if (is_he) "מדריך פרשנות למבחני דיאגנוסטיקה" else "Diagnostic Interpretation Guide", style = "color: #1E3A8A; font-weight: bold;"),
+             
+             # 1. New Conceptual Example Plots
+             plotOutput("plot_examples", height = "250px"),
+             
+             # 2. Comprehensive Math & Selection Guide
              htmlOutput("diag_text"),
+             
+             hr(style = "border-top: 2px solid #ccc; margin-top: 30px; margin-bottom: 30px;"),
+             
+             # 3. Actual Uploaded Data Results
+             h3(if (is_he) "תוצאות הנתונים האמיתיים שלך" else "Your Actual Data Results", style = "color: #1E3A8A; font-weight: bold;"),
+             h4(if (is_he) "בחירת גורמים (r) – קריטריוני Bai & Ng" else "Factor Selection (r) – Bai & Ng Criteria"),
+             plotOutput("plot_icr", height = "350px"),
              hr(),
-             h4(if (is_he) "בחירת גורמים (קריטריון ICr)" else "Factor Selection (ICr Criteria)"),
-             plotOutput("plot_icr"),
-             hr(),
-             h4(if (is_he) "חיפוש רשת לפיגורים (AIC / BIC)" else "Lag Selection Grid Search (AIC / BIC)"),
-             plotOutput("plot_lags")
+             h4(if (is_he) "בחירת פיגורים (p) – קריטריוני AIC / BIC" else "Lag Selection (p) – AIC / BIC Search"),
+             plotOutput("plot_lags", height = "350px")
       )
     )
   })
   
+  # --- NEW: Generate Conceptual "Knee" vs "Elbow" plots in Base R ---
+  output$plot_examples <- renderPlot({
+    is_he <- lang() == "he"
+    par(mfrow = c(1, 2), mar = c(4, 4, 3, 1), bg = "#f8f9fa")
+    
+    # Example 1: The Knee (Diminishing Returns)
+    x_knee <- 1:8
+    y_knee <- c(10, 4, 1.8, 1.3, 1.1, 1.05, 1.02, 1.0)
+    plot(x_knee, y_knee, type = "b", pch = 16, col = "darkblue", lwd = 2,
+         xlab = if(is_he) "פרמטר (r או p)" else "Parameter (r or p)", 
+         ylab = if(is_he) "קריטריון שגיאה" else "Error Criterion",
+         main = if(is_he) "צורה 1: 'ברך' (Knee)\nתפוקה שולית פוחתת" else "Shape 1: 'Knee'\nDiminishing Returns")
+    points(3, y_knee[3], col = "red", cex = 3, lwd = 3)
+    text(4.5, 4, if(is_he) "בחר כאן:\nהעקומה מתיישרת" else "Pick Here:\nCurve flattens", col = "red")
+    
+    # Example 2: The Elbow/Min (U-Shape)
+    x_min <- 1:6
+    y_min <- (x_min - 3)^2 + 2
+    plot(x_min, y_min, type = "b", pch = 16, col = "darkgreen", lwd = 2,
+         xlab = if(is_he) "פרמטר (r או p)" else "Parameter (r or p)", 
+         ylab = if(is_he) "קריטריון שגיאה" else "Error Criterion",
+         main = if(is_he) "צורה 2: מינימום / מרפק (U-Shape)\nנקודת האיזון האופטימלית" else "Shape 2: Minimum (U-Shape)\nOptimal Balance Point")
+    points(3, y_min[3], col = "red", cex = 3, lwd = 3)
+    text(3, 6, if(is_he) "בחר כאן:\nהשפל המוחלט" else "Pick Here:\nAbsolute lowest point", col = "red")
+  })
+  
+  # --- NEW: Re-written Text with MathJax Formulas and Non-Patronizing Explanations ---
   output$diag_text <- renderText({
     req(rv$diag_res)
     res <- rv$diag_res
@@ -456,19 +493,89 @@ server <- function(input, output, session) {
     
     if (is_he) {
       paste0(
-        "<b>גורמים מומלצים (r):</b> ", res$suggested_r, "<br>",
-        "<b>פיגורים מומלצים (p):</b> ", res$suggested_p, "<br><br>",
-        "<i>כיצד לקרוא את התרשימים:</i><br>",
-        "<b>גורמים (r):</b> התרשים העליון מציג את קריטריוני המידע (IC). חפש נקודת 'ברך' (Knee) שבה העקומה יורדת בחדות ולאחר מכן מתיישרת — שם תוספת גורמים כבר אינה מוסיפה מידע משמעותי.<br>",
-        "<b>פיגורים (p):</b> התרשים התחתון מציג את קריטריוני AIC ו-BIC. התמקד בעקומת ה-<b>BIC</b> וחפש את נקודת ה'מרפק' (Elbow) — השפל שבו המודל מגיע לאיזון אופטימלי בין דיוק למורכבות. (BIC מעניש על סיבוכיות יתר ומונע התאמת יתר של התוצר)."
+        "<div style='background-color: #f9f9f9; padding: 15px; border-radius: 5px; border: 1px solid #ddd; margin-top: 15px;'>",
+        
+        "<h4 style='color: #0056b3; margin-top:0;'>💡 המלצות המערכת (מחושבות אמפירית)</h4>",
+        "<ul style='font-size: 1.1em;'>",
+        "<li><b>מספר גורמים מומלץ (r): <span style='color:red;'>", res$suggested_r, "</span></b></li>",
+        "<li><b>מספר פיגורים מומלץ (p): <span style='color:red;'>", res$suggested_p, "</span></b></li>",
+        "</ul>",
+        
+        "<h4 style='color: #0056b3; margin-top: 20px;'>🔍 שלב 1: זיהוי צורות ויזואלי (תלוי נתונים)</h4>",
+        "<p>לא ניתן להניח מראש איזו צורה תתקבל. ללא קשר לשאלה האם מדובר בגרף הגורמים או הפיגורים, עלייך לבחון את הגרפים האמיתיים שלך למטה ולחפש אחת משתי התופעות שמוצגות בדוגמאות למעלה:</p>",
+        "<ul>",
+        "<li><b>צורה 1 - 'ברך' (Knee):</b> ירידה חדה שמתיישרת לפתע. <b>החוק:</b> בחר את הנקודה שבה התוספת של גורם/פיגור מתחילה להיות זניחה. הוספת פרמטרים נוספים אחרי נקודה זו רק תייצר רעש.</li>",
+        "<li><b>צורה 2 - מינימום (U-Shape):</b> גרף שיורד לנקודת שפל ואז עולה בחזרה. <b>החוק:</b> בחר את נקודת השפל המוחלטת (מרפק/עמק), שכן היא מייצגת את הקנס המינימלי למורכבות המודל.</li>",
+        "</ul>",
+        
+        "<hr style='margin-top: 20px; margin-bottom: 20px;'>",
+        
+        "<h4 style='color: #0056b3;'>🧮 שלב 2: קריאת גרף הפיגורים (p) – AIC לעומת BIC</h4>",
+        "<p>התרשים התחתון מציג שני קריטריונים שונים למציאת האיזון הנכון בין דיוק המודל למספר הפיגורים שלו. מה ההבדל ביניהם?</p>",
+        "<ul>",
+        "<li><b>AIC (Akaike Information Criterion - קו אפור):</b> קריטריון שסלחן יותר למורכבות. הוא מנסה למקסם כוח ניבוי טהור ולכן נוטה להמליץ על מודלים עם הרבה פיגורים. <br><b>מתי להשתמש?</b> רק כאשר יש לך עשרות שנות נתונים ברזולוציה יומית או חודשית, ואין חשש מהתאמת-יתר (Overfitting).</li>",
+        "<li><b>BIC (Bayesian Information Criterion - קו כחול):</b> קריטריון שמטיל קנס כבד על הוספת משתנים למודל. הוא מחפש מודלים פשוטים וחסכוניים. <br><b>מתי להשתמש? <span style='color:red;'>זהו הסטנדרט לבחירת מודלי מאקרו.</span></b> הוא מונע התאמת יתר של התוצר כאשר מדגם הנתונים קטן יחסית. <b>לכן, תמיד התמקד בעקומת ה-BIC.</b></li>",
+        "</ul>",
+        
+        "<hr style='margin-top: 20px; margin-bottom: 20px;'>",
+        
+        "<h4 style='color: #0056b3;'>📊 שלב 3: קריאת גרף הגורמים (r) – קריטריוני Bai & Ng (2002)</h4>",
+        "<p>התרשים העליון מציג את שלושת קריטריוני המידע של Bai & Ng לבחירת גורמים מתוך פאנל נתונים רחב. שלושתם מנסים למזער את השונות הלא-מוסברת \\( V(r) \\) מול קנס מתמטי שהולך וגדל ככל שמוסיפים גורמים \\( r \\).</p>",
+        
+   
+        "<p style='margin-top: 15px;'><b>איזה מהם להעדיף כאשר הקווים מציגים תוצאות שונות?</b></p>",
+        "<ul>",
+        "<li><b>IC2 (קו ירוק): <span style='color:red;'>הסטנדרט המועדף.</span></b> מאזן בצורה העקבית והנכונה ביותר בין כמות המשתנים (N) לאורך הזמן (T). המלצת המערכת נגזרת מקו זה.</li>",
+        "<li><b>IC1 (קו שחור):</b> משמש בעיקר כגיבוי ווידוא ל-IC2 (לרוב הם ינועו ביחד).</li>",
+        "<li><b>IC3 (קו תכלת):</b> הקריטריון המחמיר ביותר. הוא קונס מורכבות בצורה כל כך אגרסיבית שלפעמים הוא נוטה לבחור מעט מדי גורמים, במיוחד במדגמי מאקרו קטנים.</li>",
+        "</ul>",
+        
+        "</div>"
       )
     } else {
       paste0(
-        "<b>Suggested Factors (r):</b> ", res$suggested_r, "<br>",
-        "<b>Suggested Lags (p):</b> ", res$suggested_p, "<br><br>",
-        "<i>How to read the diagnostic plots:</i><br>",
-        "<b>Factors (r):</b> The top plot shows information criteria (IC). Look for a sharp drop that flattens out ('knee')—this indicates where adding more factors yields diminishing information.<br>",
-        "<b>Lags (p):</b> The bottom plot compares AIC and BIC across lag lengths. Focus on the <b>BIC curve</b> and look for the 'elbow' (the lowest point before curves rebound)—this represents the best trade-off between accuracy and model simplicity. (BIC is prioritized because it penalizes lag complexity, preventing GDP overfitting)."
+        "<div style='background-color: #f9f9f9; padding: 15px; border-radius: 5px; border: 1px solid #ddd; margin-top: 15px;'>",
+        
+        "<h4 style='color: #0056b3; margin-top:0;'>💡 System Recommendations (Empirically Calculated)</h4>",
+        "<ul style='font-size: 1.1em;'>",
+        "<li><b>Suggested Factors (r): <span style='color:red;'>", res$suggested_r, "</span></b></li>",
+        "<li><b>Suggested Lags (p): <span style='color:red;'>", res$suggested_p, "</span></b></li>",
+        "</ul>",
+        
+        "<h4 style='color: #0056b3; margin-top: 20px;'>🔍 Step 1: Visual Shape Identification (Data-Dependent)</h4>",
+        "<p>You cannot assume a chart will look a certain way. Regardless of whether you are looking at the Factors (r) or Lags (p) chart, examine your actual results below for one of the two empirical phenomena illustrated in the examples above:</p>",
+        "<ul>",
+        "<li><b>Shape 1 - The 'Knee':</b> A sharp drop that abruptly flattens.</li> <li><b>Rule:</b> Select the point exactly where diminishing returns set in (where adding a parameter yields almost zero extra drop in error). Adding parameters past the knee just introduces noise.</li>",
+        "<li><b>Shape 2 - The Minimum (U-Shape):</b> A curve that descends to a clear low point and then rises again.</li> <li> <b>Rule:</b> Select the absolute minimum point (the elbow/valley), as this represents the lowest possible penalty for model complexity.</li>",
+        "</ul>",
+        
+        "<hr style='margin-top: 20px; margin-bottom: 20px;'>",
+        
+        "<h4 style='color: #0056b3;'>🧮 Step 2: Reading the Lags (p) Chart – AIC vs. BIC</h4>",
+        "<p>The bottom plot compares two different mathematical criteria that try to find the perfect balance between the accuracy of your model and how many lags it uses. What is the difference?</p>",
+        "<ul>",
+        "<li><b>AIC (Akaike Information Criterion - Gray line):</b> Forgiving of complexity. It maximizes pure predictive power, so it tends to suggest models with many lags. <br><b>When to use?</b> Only if you have massive, high-frequency datasets (decades of daily data) where overfitting is unlikely.</li>",
+        "<li><b>BIC (Bayesian Information Criterion - Blue line):</b> Heavily penalizes adding extra variables. It looks for simple, parsimonious models. <br><b>When to use? <span style='color:red;'>This is the preferred standard for macroeconomic nowcasting.</span></b> It actively prevents overfitting GDP when sample sizes are small. <b>Always focus your decision on the BIC curve.</b></li>",
+        "</ul>",
+        
+        "<hr style='margin-top: 20px; margin-bottom: 20px;'>",
+        
+        "<h4 style='color: #0056b3;'>📊 Step 3: Reading the Factors (r) Chart – Bai & Ng (2002) Criteria</h4>",
+        "<p>The top plot displays the three Bai & Ng Information Criteria for extracting factors from a large dataset. They all aim to minimize the unexplained variance \\( V(r) \\) while mathematically penalizing you for extracting too many factors \\( r \\).</p>",
+        
+        "<div style='background-color: #fff; padding: 15px; border: 1px dashed #ccc; font-family: monospace; overflow-x: auto;'>",
+        "$$ IC_{p1}(r) = \\ln(V(r)) + r \\left( \\frac{N+T}{NT} \\right) \\ln\\left( \\frac{NT}{N+T} \\right) $$",
+        "$$ IC_{p2}(r) = \\ln(V(r)) + r \\left( \\frac{N+T}{NT} \\right) \\ln(\\min(N,T)) $$",
+        "$$ IC_{p3}(r) = \\ln(V(r)) + r \\left( \\frac{\\ln(\\min(N,T))}{\\min(N,T)} \\right) $$",
+        "</div>",
+        "<p style='margin-top: 15px;'><b>Which one to trust when lines diverge?</b></p>",
+        "<ul>",
+        "<li><b>IC2 (Green line): <span style='color:red;'>The industry standard and default choice.</span></b> The system suggestion relies on this. It provides the most mathematically consistent scaling penalty across N (number of variables) and T (time points).</li>",
+        "<li><b>IC1 (Black line):</b> Often tracks closely with IC2; used primarily as a robustness check.</li>",
+        "<li><b>IC3 (Light Blue line):</b> The most aggressive penalty. It penalizes complexity so heavily that it can sometimes under-select factors in smaller macro panels.</li>",
+        "</ul>",
+        
+        "</div>"
       )
     }
   })
@@ -483,15 +590,15 @@ server <- function(input, output, session) {
     res_df <- rv$diag_res$results_df
     
     ggplot(res_df, aes(x = p)) +
-      geom_line(aes(y = BIC, color = "BIC"), size = 1) +
+      geom_line(aes(y = BIC, color = "BIC"), linewidth = 1) +
       geom_point(aes(y = BIC, color = "BIC"), size = 3) +
-      geom_line(aes(y = AIC, color = "AIC"), size = 1, linetype = "dashed") +
+      geom_line(aes(y = AIC, color = "AIC"), linewidth = 1, linetype = "dashed") +
       geom_point(aes(y = AIC, color = "AIC"), size = 3) +
-      geom_vline(xintercept = rv$diag_res$suggested_p, color = "red", linetype = "dotted", size = 1.5) +
+      geom_vline(xintercept = rv$diag_res$suggested_p, color = "red", linetype = "dotted", linewidth = 1.5) +
       annotate("text", x = rv$diag_res$suggested_p, y = min(res_df$BIC, na.rm=TRUE), 
-               label = paste("Suggested Elbow:", rv$diag_res$suggested_p), color = "red", vjust = -1, hjust = -0.1) +
+               label = paste("System Suggestion:", rv$diag_res$suggested_p), color = "red", vjust = -1, hjust = -0.1) +
       scale_color_manual(values = c("BIC" = "blue", "AIC" = "darkgray")) +
-      labs(title = "Grid Search for Lags (p)", x = "Number of Lags (p)", y = "Information Criterion Value", color = "Metric") +
+      labs(title = "Information Criteria for Lags (p)", x = "Number of Lags (p)", y = "Criterion Value", color = "Metric") +
       theme_minimal()
   })
   
