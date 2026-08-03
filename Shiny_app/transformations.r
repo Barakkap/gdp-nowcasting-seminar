@@ -17,7 +17,6 @@ library(readr)
 # ---- Constants -----
 
 required_columns <- list(
-  dataupdate = c("personal_labor_income_taxes", "1month lag"),   # adjust as needed
   personal_labor_income_taxes = c(
     "Date", "Total Gross Income Tax Division",
     "Total refunds from the Income Tax Department",

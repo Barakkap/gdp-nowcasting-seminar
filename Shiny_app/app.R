@@ -26,6 +26,8 @@ ui <- fluidPage(
       fileInput("raw_data", "1. Upload Raw Data (Excel)",
                 accept = c(".xlsx")),
       
+      actionButton("diag_btn", "Check Best Factors & Lags", class = "btn-warning", style = "width: 100%; margin-bottom: 20px;"),
+      
       numericInput("dfm_r", "DFM 'r' parameter (factors):", value = 4, min = 1, step = 1),
       numericInput("dfm_p", "DFM 'p' parameter (lags):", value = 3, min = 1, step = 1),
       
@@ -36,8 +38,16 @@ ui <- fluidPage(
     ),
     
     mainPanel(
-      h4("Execution Logs"),
-      verbatimTextOutput("logs_output", placeholder = TRUE)
+      tabsetPanel(
+        tabPanel("Execution Logs",
+                 br(),
+                 verbatimTextOutput("logs_output", placeholder = TRUE)
+        ),
+        tabPanel("Diagnostics",
+                 br(),
+                 uiOutput("diag_ui")
+        )
+      )
     )
   )
 )
@@ -51,7 +61,8 @@ server <- function(input, output, session) {
   rv <- reactiveValues(
     logs = character(0),
     report_wb = NULL,
-    out_df = NULL
+    out_df = NULL,
+    diag_res = NULL
   )
   
   # Create a temporary file to hold logs for real-time streaming
@@ -70,6 +81,102 @@ server <- function(input, output, session) {
   
   output$logs_output <- renderText({
     paste(log_data(), collapse = "\n")
+  })
+  
+  # Observe Diagnostics Button
+  observeEvent(input$diag_btn, {
+    req(input$raw_data)
+    
+    rv$logs <- character(0)
+    file.create(log_file)
+    
+    tryCatch({
+      withProgress(message = 'Running Diagnostics...', value = 0, {
+        
+        append_log(">>> STEP 1: Fast data reading for diagnostics")
+        # We can use the first step of run_transformations to just get the panel
+        trans_res <- run_transformations(
+          raw_data_path = input$raw_data$datapath,
+          td_ts = td_ts,
+          hag_ts = hag_ts,
+          update_log = append_log,
+          update_progress = function(val, msg) { incProgress(val * 0.2, detail = msg) }
+        )
+        
+        append_log(">>> STEP 2: Running ICr and Grid Search")
+        diag_res <- run_diagnostics(
+          combined_panel = trans_res$combined_panel,
+          update_log = append_log,
+          update_progress = function(val, msg) { setProgress(value = 0.2 + (val * 0.8), detail = msg) }
+        )
+        
+        rv$diag_res <- diag_res
+        
+        # Update numeric inputs with suggested values
+        updateNumericInput(session, "dfm_r", value = diag_res$suggested_r)
+        updateNumericInput(session, "dfm_p", value = diag_res$suggested_p)
+        
+        append_log(">>> DIAGNOSTICS COMPLETED SUCCESSFULLY")
+        setProgress(1, detail = "Done!")
+      })
+      
+    }, error = function(e) {
+      append_log(paste("ERROR:", e$message))
+    })
+  })
+  
+  # Render Diagnostics UI
+  output$diag_ui <- renderUI({
+    if (is.null(rv$diag_res)) {
+      return(h5("Please upload data and click 'Check Best Factors & Lags' to view diagnostics."))
+    }
+    
+    fluidRow(
+      column(12,
+             h4("Diagnostics Recommendation"),
+             htmlOutput("diag_text"),
+             hr(),
+             h4("Factor Selection (ICr Criteria)"),
+             plotOutput("plot_icr"),
+             hr(),
+             h4("Lag Selection Grid Search (AIC / BIC)"),
+             plotOutput("plot_lags")
+      )
+    )
+  })
+  
+  output$diag_text <- renderText({
+    req(rv$diag_res)
+    res <- rv$diag_res
+    paste0(
+      "<b>Suggested Factors (r):</b> ", res$suggested_r, "<br>",
+      "<b>Suggested Lags (p):</b> ", res$suggested_p, "<br><br>",
+      "<i>How to choose:</i><br>",
+      "<b>Factors (r):</b> The first plot shows information criteria (IC1, IC2, IC3) for different numbers of factors. You are looking for a 'knee' or elbow shape where the metric drops sharply and then levels off. The suggested value is mathematically derived from these IC criteria minimums.<br>",
+      "<b>Lags (p):</b> The second plot shows the BIC (Bayesian Information Criterion) and AIC for fitting the model with the chosen number of factors across different lag lengths (1 to 6). We look for an 'elbow' point in the BIC curve—the point furthest from a straight line connecting the first and last points—as this represents the best trade-off between model fit and complexity."
+    )
+  })
+  
+  output$plot_icr <- renderPlot({
+    req(rv$diag_res)
+    plot(rv$diag_res$ic)
+  })
+  
+  output$plot_lags <- renderPlot({
+    req(rv$diag_res)
+    res_df <- rv$diag_res$results_df
+    
+    ggplot(res_df, aes(x = p)) +
+      geom_line(aes(y = BIC, color = "BIC"), size = 1) +
+      geom_point(aes(y = BIC, color = "BIC"), size = 3) +
+      geom_line(aes(y = AIC, color = "AIC"), size = 1, linetype = "dashed") +
+      geom_point(aes(y = AIC, color = "AIC"), size = 3) +
+      geom_vline(xintercept = rv$diag_res$suggested_p, color = "red", linetype = "dotted", size = 1.5) +
+      annotate("text", x = rv$diag_res$suggested_p, y = min(res_df$BIC, na.rm=T), 
+               label = paste("Suggested Elbow:", rv$diag_res$suggested_p), color = "red", vjust = -1, hjust = -0.1) +
+      scale_color_manual(values = c("BIC" = "blue", "AIC" = "darkgray")) +
+      labs(title = "Grid Search for Lags (p)", x = "Number of Lags (p)", y = "Information Criterion Value", color = "Metric") +
+      theme_minimal()
   })
   
   # Observe Run Button
@@ -153,7 +260,7 @@ server <- function(input, output, session) {
       openxlsx::saveWorkbook(rv$report_wb, file, overwrite = TRUE)
     }
   )
-
+  
   # Download Handler for the raw predictions CSV
   output$download_csv <- downloadHandler(
     filename = function() {
