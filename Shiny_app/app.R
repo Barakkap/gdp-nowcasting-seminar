@@ -561,13 +561,9 @@ server <- function(input, output, session) {
         "<hr style='margin-top: 20px; margin-bottom: 20px;'>",
         
         "<h4 style='color: #0056b3;'>📊 Step 3: Reading the Factors (r) Chart – Bai & Ng (2002) Criteria</h4>",
-        "<p>The top plot displays the three Bai & Ng Information Criteria for extracting factors from a large dataset. They all aim to minimize the unexplained variance \\( V(r) \\) while mathematically penalizing you for extracting too many factors \\( r \\).</p>",
+        "<p>The top plot displays the three Bai & Ng Information Criteria for extracting factors from a large dataset. They all aim to minimize the unexplained variance (V(r)) while mathematically penalizing you for extracting too many factors (r).</p>",
         
-        "<div style='background-color: #fff; padding: 15px; border: 1px dashed #ccc; font-family: monospace; overflow-x: auto;'>",
-        "$$ IC_{p1}(r) = \\ln(V(r)) + r \\left( \\frac{N+T}{NT} \\right) \\ln\\left( \\frac{NT}{N+T} \\right) $$",
-        "$$ IC_{p2}(r) = \\ln(V(r)) + r \\left( \\frac{N+T}{NT} \\right) \\ln(\\min(N,T)) $$",
-        "$$ IC_{p3}(r) = \\ln(V(r)) + r \\left( \\frac{\\ln(\\min(N,T))}{\\min(N,T)} \\right) $$",
-        "</div>",
+
         "<p style='margin-top: 15px;'><b>Which one to trust when lines diverge?</b></p>",
         "<ul>",
         "<li><b>IC2 (Green line): <span style='color:red;'>The industry standard and default choice.</span></b> The system suggestion relies on this. It provides the most mathematically consistent scaling penalty across N (number of variables) and T (time points).</li>",
