@@ -95,6 +95,21 @@ ui <- fluidPage(
 # ==============================================================================
 server <- function(input, output, session) {
   
+  # Listen for a new file upload
+  observeEvent(input$raw_data, {
+    # Wipe the old reports so the download buttons disappear
+    rv$report_wb <- NULL
+    rv$out_df <- NULL
+    
+    # Clear the old diagnostics graphs
+    rv$diag_res <- NULL
+    
+    # Clear the log screen
+    rv$logs <- character(0)
+    file.create(log_file)
+    append_log(">>> New file uploaded. Ready to run Diagnostics or Pipeline.")
+  })
+  
   # ----------------------------------------------------------------------------
   # 1. LANGUAGE STATE & DYNAMIC UI
   # ----------------------------------------------------------------------------
@@ -316,11 +331,14 @@ server <- function(input, output, session) {
         
         mainPanel(
           tabsetPanel(
+            id = "main_tabs",
             tabPanel(if (is_he) "יומן הרצה (Logs)" else "Execution Logs",
+                     value = "logs",
                      br(),
                      verbatimTextOutput("logs_output", placeholder = TRUE)
             ),
             tabPanel(if (is_he) "דיאגנוסטיקה" else "Diagnostics",
+                     value = "diagnostics",
                      br(),
                      uiOutput("diag_ui")
             )
@@ -362,8 +380,19 @@ server <- function(input, output, session) {
   observeEvent(input$diag_btn, {
     req(input$raw_data)
     
+    # Automatically switch active tab to Diagnostics
+    updateTabsetPanel(session, "main_tabs", selected = "diagnostics")
+    
+    # Clear old Excel reports to hide download buttons
+    rv$report_wb <- NULL
+    rv$out_df <- NULL
+    
     rv$logs <- character(0)
     file.create(log_file)
+    
+    # Log the button click
+    append_log("=== INITIATING DIAGNOSTICS ===")
+    append_log(paste(">>> File loaded:", input$raw_data$name))
     
     tryCatch({
       withProgress(message = 'Running Diagnostics...', value = 0, {
@@ -472,10 +501,18 @@ server <- function(input, output, session) {
   observeEvent(input$run_btn, {
     req(input$raw_data)
     
+    # Automatically snap back to the Execution Logs tab so they can watch it run
+    updateTabsetPanel(session, "main_tabs", selected = "logs")
+    
     rv$logs <- character(0)
     rv$report_wb <- NULL
     rv$out_df <- NULL
     file.create(log_file)
+    
+    # Log the button click
+    append_log("=== INITIATING PIPELINE ===")
+    append_log(paste(">>> File loaded:", input$raw_data$name))
+    append_log(paste(">>> DFM Parameters Selected -> r:", req(input$dfm_r), "| p:", req(input$dfm_p)))
     
     tryCatch({
       
@@ -557,7 +594,9 @@ server <- function(input, output, session) {
     },
     content = function(file) {
       req(rv$report_wb)
+      append_log(">>> EXPORT: Generating and downloading Excel Executive Report...")
       openxlsx::saveWorkbook(rv$report_wb, file, overwrite = TRUE)
+      append_log(">>> EXPORT: Excel Report downloaded successfully.")
     }
   )
   
@@ -567,7 +606,9 @@ server <- function(input, output, session) {
     },
     content = function(file) {
       req(rv$out_df)
+      append_log(">>> EXPORT: Generating and downloading Raw Predictions CSV...")
       write.csv(rv$out_df, file, row.names = FALSE, na = "")
+      append_log(">>> EXPORT: CSV downloaded successfully.")
     }
   )
 }

@@ -115,3 +115,71 @@ generate_report <- function(models_res, blocks_shifted, r_val = 4, p_val = 3, up
   
   return(env$wb)
 }
+
+run_diagnostics <- function(combined_panel, update_log = function(msg){}, update_progress = function(val, msg){}) {
+  update_log(">>> DIAGNOSTICS: Extracting panel for Information Criteria...")
+  
+  # 1. Prepare balanced data panel (Exclude Date, GDP, and structurally problematic columns)
+  X <- combined_panel %>% 
+    dplyr::select(-Date, -any_of(c("GDP", 'Net import purchase tax', 'Total Income Tax Division Net', 
+                                   'Companies returns', 'praise tax returns', 'participation rate')))
+  X <- X %>% dplyr::select(where(~ !all(is.na(.))))
+  
+  # Bai & Ng (2002) requires a dense, balanced matrix (no NAs)
+  X_dense <- na.omit(X)
+  X_mat <- scale(as.matrix(X_dense))
+  
+  update_progress(0.4, "Calculating Bai & Ng (2002) Criteria...")
+  
+  # 2. Bai & Ng Criteria for 'r' (Using dfms package)
+  ic_res <- dfms::ICr(X_mat)
+  
+  # Extract IC2 minimum (Standard econometric choice for DFM factors)
+  best_r <- as.numeric(ic_res$r.star["IC2"]) 
+  if(is.na(best_r) || best_r < 1) best_r <- 4
+  
+  update_log(paste(">>> Optimal factors (r) identified as:", best_r))
+  update_progress(0.7, "Running Grid Search for Lags (p)...")
+  
+  # 3. VAR Lag Selection for 'p' (Using Principal Components as proxies for speed)
+  pca <- prcomp(X_mat, center = FALSE, scale. = FALSE)
+  F_pca <- pca$x[, 1:best_r, drop = FALSE]
+  
+  max_p <- 6
+  results_df <- data.frame(p = 1:max_p, AIC = NA, BIC = NA)
+  T_obs <- nrow(F_pca)
+  
+  for (p in 1:max_p) {
+    Y <- F_pca[(p+1):T_obs, , drop = FALSE]
+    X_lag <- matrix(NA, nrow = nrow(Y), ncol = best_r * p)
+    for (lag in 1:p) {
+      X_lag[, ((lag-1)*best_r + 1):(lag*best_r)] <- F_pca[(p+1-lag):(T_obs-lag), ]
+    }
+    
+    fit <- lm(Y ~ X_lag)
+    Sigma <- cov(fit$residuals)
+    det_Sigma <- det(Sigma)
+    
+    # Penalize collinearity/singularities heavily
+    if (det_Sigma <= 0) {
+      results_df$AIC[p] <- Inf
+      results_df$BIC[p] <- Inf
+    } else {
+      k <- best_r * p * best_r 
+      results_df$AIC[p] <- log(det_Sigma) + (2 * k) / nrow(Y)
+      results_df$BIC[p] <- log(det_Sigma) + (log(nrow(Y)) * k) / nrow(Y)
+    }
+  }
+  
+  best_p <- results_df$p[which.min(results_df$BIC)]
+  update_log(paste(">>> Optimal lags (p) identified as:", best_p))
+  
+  update_progress(1.0, "Diagnostics Complete")
+  
+  return(list(
+    ic = ic_res,
+    results_df = results_df,
+    suggested_r = best_r,
+    suggested_p = best_p
+  ))
+}
