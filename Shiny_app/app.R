@@ -19,10 +19,161 @@ hag_ts <- ts(preadj[, -1], start = c(year(min(preadj$date)), month(min(preadj$da
 # UI
 # ==============================================================================
 ui <- fluidPage(
+  tags$head(
+    tags$style(HTML("
+      /* Collapsible Details Styling */
+      details summary {
+        cursor: pointer;
+        color: #0056b3;
+        font-weight: 600;
+        padding: 8px;
+        border-radius: 4px;
+        transition: background-color 0.2s ease;
+        list-style: none;
+      }
+      details summary::-webkit-details-marker {
+        display: none;
+      }
+      /* Custom animated dropdown arrow */
+      details summary::before {
+        content: '▶';
+        display: inline-block;
+        margin-right: 8px;
+        font-size: 0.8em;
+        transition: transform 0.2s ease;
+      }
+      details[open] summary::before {
+        transform: rotate(90deg);
+      }
+      details summary:hover {
+        background-color: #e2e6ea;
+      }
+      details[open] summary {
+        background-color: #e2e6ea;
+        margin-bottom: 10px;
+      }
+      /* Internal scrollable container for long documentation */
+      .guide-container {
+        max-height: 520px;
+        overflow-y: auto;
+        padding-right: 8px;
+      }
+      .guide-table {
+        font-size: 0.85em;
+        margin-top: 10px;
+      }
+      .col-list {
+        font-size: 0.88em;
+        color: #444;
+      }
+    "))
+  ),
+  
   titlePanel("GDP Nowcasting & Bridge Model"),
   
   sidebarLayout(
     sidebarPanel(
+      # --- COLLAPSIBLE DOCUMENTATION GUIDE ---
+      div(
+        class = "well",
+        style = "background-color: #f5f5f5; padding: 10px; margin-bottom: 20px;",
+        
+        tags$details(
+          tags$summary("Data File Specification & Upload Guide"),
+          
+          div(
+            class = "guide-container",
+            
+            p("To ensure the Nowcasting model runs smoothly without execution errors or pipeline failures, any uploaded Excel file (.xlsx) must strictly conform to the structure, sheet naming, and exact column headers outlined below."),
+            
+            h5(tags$b("General File Requirements")),
+            tags$ul(
+              tags$li(tags$b("File Format: "), "Standard Excel Workbook (.xlsx)."),
+              tags$li(tags$b("Sheet Names: "), "Must contain all 12 required sheets using exact spelling (case-sensitive, no spaces)."),
+              tags$li(tags$b("Date Column: "), "Every data sheet must have a ", tags$code("Date"), " column as its first column (YYYY-MM-DD)."),
+              tags$li(tags$b("Data Types: "), "All indicator columns must contain pure numeric values (integers or decimals). Do NOT include currency symbols ($, ₪), commas as thousands separators (1,234.56), or text notes (N/A, null, -). Leave unobserved periods blank.")
+            ),
+            
+            hr(style = "margin: 12px 0; border-top: 1px solid #ccc;"),
+            
+            h5(tags$b("Required Sheets & Exact Column Breakdown")),
+            p("The workbook must contain 12 specific sheets with exact column matching:"),
+            
+            tags$strong("1. Configuration Sheet"),
+            tags$ul(
+              tags$li(tags$code("dataupdate"), " — 2-column key-value table (Category group name, Publication lag specification).")
+            ),
+            
+            tags$strong("2. Monthly Economic Indicator Sheets"),
+            tags$ul(class = "col-list",
+                    tags$li(tags$code("personal_labor_income_taxes"), ": Date, Total Gross Income Tax Division, Total refunds from the Income Tax Department, Total Income Tax Division Net, Deductions and the capital market, Deduction from salary, Independents advances, Self-employed tax differences, Independent Cancellations, self employed returns, Capital Gains Tax Refunds, VAT Financial Institutions (Salary), Non-profit institution tax"),
+                    tags$li(tags$code("corporate_business_tax"), ": Date, Companies advances, tax differential companies, Cancellation companies, Income tax for self-employed individuals and companies (advances and deductions), Companies returns, excess expenses, Bonds and dividends, Cancellations Deductions, Goods and services"),
+                    tags$li(tags$code("consumption_tax"), ": Date, Gross local VAT, VAT refund autonomy and traders, Total net VAT, Net local sales tax, Gross fuel tax"),
+                    tags$li(tags$code("import_trade_tax"), ": Date, Gross import VAT, Net customs, Net import purchase tax, Total import taxes"),
+                    tags$li(tags$code("real_estate"), ": Date, Real estate taxation, Property tax, praise tax, Real estate purchase tax, praise tax returns, purchase returns, Apartments sold at an annual rate, Apartment Price Index (1993=100) - Mid-period reviewed"),
+                    tags$li(tags$code("real_activity"), ": Date, cons_trust, madad meshulav, madad_cc_purchases_sa, madad_pedio, madad_yetzur_industrial, Oil, madad_hadash"),
+                    tags$li(tags$code("labor"), ": Date, real salary, salaried jobs, unemployment rate, participation rate, employment rate"),
+                    tags$li(tags$code("capital_markets"), ": Date, TA35, TA125, Nasdaq, sp500"),
+                    tags$li(tags$code("FX_liqudity"), ": Date, Reer, Dollar, Foreign exchange reserves (millions of dollars)")
+            ),
+            
+            tags$strong("3. Target & Macro Adjusters Sheets"),
+            tags$ul(class = "col-list",
+                    tags$li(tags$code("target"), ": Date, GDP (Quarterly frequency)"),
+                    tags$li(tags$code("adjusters"), ": Date, VAT_rate, CPI (Monthly frequency)")
+            ),
+            
+            hr(style = "margin: 12px 0; border-top: 1px solid #ccc;"),
+            
+            h5(tags$b("Common Causes of Pipeline Failure")),
+            tags$table(
+              class = "table table-bordered table-striped guide-table",
+              tags$thead(
+                tags$tr(
+                  tags$th("Potential Error"),
+                  tags$th("Cause"),
+                  tags$th("Prevention / Fix")
+                )
+              ),
+              tags$tbody(
+                tags$tr(
+                  tags$td(tags$code("KeyError: 'FX_liqudity'")),
+                  tags$td("Sheet name misspelled (e.g., FX_liquidity)."),
+                  tags$td("Keep sheet names identical to sample file.")
+                ),
+                tags$tr(
+                  tags$td(tags$code("ValueError: string to float")),
+                  tags$td("Numbers formatted as text or with commas (1,500.20)."),
+                  tags$td("Set cell format to Number; remove thousands separators.")
+                ),
+                tags$tr(
+                  tags$td(tags$code("Date Parsing Error")),
+                  tags$td("Dates stored as text in mixed formats."),
+                  tags$td("Format Date column as Short Date (YYYY-MM-DD).")
+                ),
+                tags$tr(
+                  tags$td(tags$code("Missing Columns Error")),
+                  tags$td("Existing feature columns deleted or renamed."),
+                  tags$td("Maintain identical headers across updates.")
+                )
+              )
+            ),
+            
+            hr(style = "margin: 12px 0; border-top: 1px solid #ccc;"),
+            
+            h5(tags$b("Pre-Upload Checklist")),
+            tags$ul(
+              tags$li("Saved as an .xlsx workbook."),
+              tags$li("Contains all 12 required sheet names."),
+              tags$li("First column in every sheet is named Date."),
+              tags$li("Monthly sheets have contiguous monthly dates."),
+              tags$li("target sheet contains quarterly dates & numeric GDP."),
+              tags$li("All numeric cells are clean (no currency symbols/text).")
+            )
+          )
+        )
+      ),
+      
       fileInput("raw_data", "1. Upload Raw Data (Excel)",
                 accept = c(".xlsx")),
       
@@ -51,6 +202,9 @@ ui <- fluidPage(
     )
   )
 )
+
+
+
 
 # ==============================================================================
 # SERVER
