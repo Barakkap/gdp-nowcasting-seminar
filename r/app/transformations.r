@@ -1371,7 +1371,7 @@ plot.ts(trans_data, ylim = ylim_trans, col = "blue",
         main = paste("Transformed:", var_name, "(Zoomed 5-95%)"),
         ylab = "Transformed")
 
-test_sa <- seasonal_adjust_block(blocks_sa$personal_labor_income_taxes[, c("Date", "Independents advances")])
+test_sa <- seasonal_adjust_block(blocks_sa$personal_labor_income_taxes[, c("Date", "Independents advances")], hag_ts = hag_ts, td_ts = td_ts)
 print(test_sa)
 
 

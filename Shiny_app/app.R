@@ -339,7 +339,7 @@ server <- function(input, output, session) {
             tabPanel(if (is_he) "דיאגנוסטיקה" else "Diagnostics",
                      value = "diagnostics",
                      br(),
-                     # NEW: withMathJax renders mathematical formulas correctly
+                     # withMathJax renders mathematical formulas correctly
                      withMathJax(uiOutput("diag_ui"))
             )
           )
@@ -428,7 +428,7 @@ server <- function(input, output, session) {
     })
   })
   
-  # --- NEW: Dynamic Diagnostics Page Layout ---
+  # --- Dynamic Diagnostics Page Layout ---
   output$diag_ui <- renderUI({
     is_he <- lang() == "he"
     if (is.null(rv$diag_res)) {
@@ -440,13 +440,27 @@ server <- function(input, output, session) {
       column(12,
              h3(if (is_he) "מדריך פרשנות למבחני דיאגנוסטיקה" else "Diagnostic Interpretation Guide", style = "color: #1E3A8A; font-weight: bold;"),
              
-             # 1. New Conceptual Example Plots
-             plotOutput("plot_examples", height = "250px"),
+             # 1. Conceptual Example Plots bounded by a distinct visual border
+             div(
+               style = "border: 2px solid #0056b3; background-color: #f8f9fa; border-radius: 8px; padding: 15px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);",
+               h5(
+                 if (is_he) "📌 גרפים לדוגמה להמחשת צורות העקומה (אינם הנתונים שלך):" 
+                 else "📌 Conceptual Examples for Shape Identification (Not your actual data):", 
+                 style = "font-weight: bold; color: #0056b3; margin-top: 0; margin-bottom: 12px;"
+               ),
+               plotOutput("plot_examples", height = "250px")
+             ),
+             
+             # Prominent Notice Banner to scroll down
+             div(
+               style = "background-color: #d1ecf1; border-left: 5px solid #17a2b8; border-right: 5px solid #17a2b8; color: #0c5460; padding: 12px 15px; border-radius: 4px; font-weight: bold; font-size: 1.05em; text-align: center; margin-bottom: 25px;",
+               if (is_he) "👇 גלול למטה לצפייה בגרפים שנוצרו מהנתונים שלך" else "👇 Scroll down for the graphs created from the data"
+             ),
              
              # 2. Comprehensive Math & Selection Guide
              htmlOutput("diag_text"),
              
-             hr(style = "border-top: 2px solid #ccc; margin-top: 30px; margin-bottom: 30px;"),
+             hr(style = "border-top: 3px double #1E3A8A; margin-top: 35px; margin-bottom: 35px;"),
              
              # 3. Actual Uploaded Data Results
              h3(if (is_he) "תוצאות הנתונים האמיתיים שלך" else "Your Actual Data Results", style = "color: #1E3A8A; font-weight: bold;"),
@@ -459,7 +473,7 @@ server <- function(input, output, session) {
     )
   })
   
-  # --- NEW: Generate Conceptual "Knee" vs "Elbow" plots in Base R ---
+  # --- Conceptual "Knee" vs "Elbow" plots in Base R ---
   output$plot_examples <- renderPlot({
     is_he <- lang() == "he"
     par(mfrow = c(1, 2), mar = c(4, 4, 3, 1), bg = "#f8f9fa")
@@ -485,7 +499,7 @@ server <- function(input, output, session) {
     text(3, 6, if(is_he) "בחר כאן:\nהשפל המוחלט" else "Pick Here:\nAbsolute lowest point", col = "red")
   })
   
-  # --- NEW: Re-written Text with MathJax Formulas and Non-Patronizing Explanations ---
+  # --- Diagnostic Text Explanations ---
   output$diag_text <- renderText({
     req(rv$diag_res)
     res <- rv$diag_res
@@ -522,7 +536,6 @@ server <- function(input, output, session) {
         "<h4 style='color: #0056b3;'>📊 שלב 3: קריאת גרף הגורמים (r) – קריטריוני Bai & Ng (2002)</h4>",
         "<p>התרשים העליון מציג את שלושת קריטריוני המידע של Bai & Ng לבחירת גורמים מתוך פאנל נתונים רחב. שלושתם מנסים למזער את השונות הלא-מוסברת \\( V(r) \\) מול קנס מתמטי שהולך וגדל ככל שמוסיפים גורמים \\( r \\).</p>",
         
-   
         "<p style='margin-top: 15px;'><b>איזה מהם להעדיף כאשר הקווים מציגים תוצאות שונות?</b></p>",
         "<ul>",
         "<li><b>IC2 (קו ירוק): <span style='color:red;'>הסטנדרט המועדף.</span></b> מאזן בצורה העקבית והנכונה ביותר בין כמות המשתנים (N) לאורך הזמן (T). המלצת המערכת נגזרת מקו זה.</li>",
@@ -563,7 +576,6 @@ server <- function(input, output, session) {
         "<h4 style='color: #0056b3;'>📊 Step 3: Reading the Factors (r) Chart – Bai & Ng (2002) Criteria</h4>",
         "<p>The top plot displays the three Bai & Ng Information Criteria for extracting factors from a large dataset. They all aim to minimize the unexplained variance (V(r)) while mathematically penalizing you for extracting too many factors (r).</p>",
         
-
         "<p style='margin-top: 15px;'><b>Which one to trust when lines diverge?</b></p>",
         "<ul>",
         "<li><b>IC2 (Green line): <span style='color:red;'>The industry standard and default choice.</span></b> The system suggestion relies on this. It provides the most mathematically consistent scaling penalty across N (number of variables) and T (time points).</li>",
