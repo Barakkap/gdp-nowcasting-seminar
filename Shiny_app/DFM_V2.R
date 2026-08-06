@@ -395,11 +395,13 @@ out_df <- results %>%
     across(where(is.numeric), ~ round(.x, 4))
   )
 
-if (!dir.exists("output")) {
-  dir.create("output", recursive = TRUE)
-}
+if (!is_shiny) {
+  if (!dir.exists("output")) {
+    dir.create("output", recursive = TRUE)
+  }
 
-write.csv(out_df,
-          file = "output/nowcast_results.csv",
-          row.names = FALSE,
-          na = "")
+  write.csv(out_df,
+            file = "output/nowcast_results.csv",
+            row.names = FALSE,
+            na = "")
+}

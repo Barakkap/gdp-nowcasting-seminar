@@ -1789,29 +1789,20 @@ if (!is_shiny) save_transformation_info(shift_report, "shift_report.xlsx")
 
 
 ## --------------------------------------------------------------------------------------
-# Input: multi-sheet transformed + lag-adjusted workbook
-if (!exists("blocks_shifted_path")) {
-  blocks_shifted_path <- "data/clean/blocks_shifted.xlsx"
-}
+# Join all sheets by Date from the blocks_shifted list in memory
 
-input_path <- blocks_shifted_path
-
-# Output: one-sheet panel for DFM
 output_path <- "data/clean/combined_monthly_panel_Q_refined.xlsx"
-
-# Read sheet names, excluding adjusters
-sheets <- readxl::excel_sheets(input_path)
-sheets_to_join <- sheets[sheets != "adjusters"]
+sheets_to_join <- names(blocks_shifted)[names(blocks_shifted) != "adjusters"]
 
 if (!"target" %in% sheets_to_join) {
   stop("The transformed workbook must include a 'target' sheet.")
 }
 
-# Read each sheet, preserving workbook sheet order and column order
+# Process each sheet, preserving order
 blocks <- sheets_to_join |>
   setNames(sheets_to_join) |>
   purrr::map(function(sheet_name) {
-    df <- readxl::read_excel(input_path, sheet = sheet_name)
+    df <- blocks_shifted[[sheet_name]]
 
     if (!"Date" %in% names(df)) {
       stop("Sheet '", sheet_name, "' does not contain a Date column.")
